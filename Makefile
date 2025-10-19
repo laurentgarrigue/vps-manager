@@ -7,10 +7,7 @@
 help: ## Affiche ce message d'aide.
 	@echo "Gestionnaire de Sauvegardes"
 	@echo "--------------------------"
-	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort | awk -F '##' '{ \
-        gsub(/:+ *$$/, "", $1); \
-        printf "  %-20s %s\n", $1, $2 \
-    }'
+	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort | awk -F '##' '{ gsub(/:+ *$$/, "", $$1); printf "  %-20s %s\n", $$1, $$2 }'
 
 # --- Installation ---
 setup: ## Initialise l environnement (crée .env, dossiers, rend le script exécutable).
