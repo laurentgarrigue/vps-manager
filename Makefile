@@ -4,7 +4,7 @@ SHELL := /bin/bash
 # Utilise des commentaires '##' pour l'auto-documentation via la commande 'make help'.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup backup-all list-backups disk-usage show-cron install-cron
+.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron install-cron
 
 help: ## Affiche ce message d'aide.
 	@echo "Gestionnaire de Sauvegardes"
@@ -17,10 +17,10 @@ setup: ## Initialise l environnement (crée .env, dossiers, rend le script exéc
 	@if [ ! -f .env ]; then \
 		cp .env.dist .env; \
 		echo "Fichier .env créé. Veuillez le modifier avec vos vrais credentials."; \
-	else 
-		echo "Fichier .env déjà existant."; 
+	else \
+		echo "Fichier .env déjà existant."; \
 	fi
-	@. .env 2>/dev/null && mkdir -p $$BACKUP_BASE_DIR || echo "Variable BACKUP_ B_DIR non définie. Remplissez .env"
+	@. .env 2>/dev/null && mkdir -p $$BACKUP_BASE_DIR || echo "Variable BACKUP_BASE_DIR non définie. Remplissez .env"
 	@chmod +x backup.sh
 	@echo "Initialisation terminée. N oubliez pas de remplir .env !"
 
@@ -41,15 +41,15 @@ backup-service: ## Lance la sauvegarde pour un service spécifique par son numé
 		for service_config in "$$${SERVICES_TO_BACKUP[@]}"; do \
 			echo "$$service_config" | cut -d';' -f1; \
 		done | cat -n; \
-	else 
-		. .env; 
-		SERVICE_NAME=$$(echo "$$${SERVICES_TO_BACKUP[$(service)-1]}" | cut -d';' -f1); 
-		if [ -z "$$SERVICE_NAME" ]; then 
-			echo "Erreur: Numéro de service invalide : $(service)"; 
-		else 
-			echo "Lancement de la sauvegarde pour le service #$(service) : $$SERVICE_NAME"; 
-			./backup.sh "$$SERVICE_NAME"; 
-		fi 
+	else \
+		. .env; \
+		SERVICE_NAME=$$(echo "$$${SERVICES_TO_BACKUP[$(service)-1]}" | cut -d';' -f1); \
+		if [ -z "$$SERVICE_NAME" ]; then \
+			echo "Erreur: Numéro de service invalide : $(service)"; \
+		else \
+			echo "Lancement de la sauvegarde pour le service #$(service) : $$SERVICE_NAME"; \
+			./backup.sh "$$SERVICE_NAME"; \
+		fi; \
 	fi
 
 # --- Supervision ---
@@ -72,16 +72,16 @@ inspect: ## Inspecte un service par son numéro. Ex: make inspect service=1
 		echo "Erreur: Vous devez spécifier un numéro de service. Ex: make inspect service=<numéro>"; \
 		echo "Services disponibles :"; \
 		docker ps --format "{{.Names}}" | cat -n; \
-	else 
-		SERVICE_NAME=$$(docker ps --format "{{.Names}}" | sed -n "$(service)p"); 
-		if [ -z "$$SERVICE_NAME" ]; then 
-			echo "Erreur: Numéro de service invalide : $(service)"; 
-			echo "Services disponibles :"; 
-			docker ps --format "{{.Names}}" | cat -n; 
-		else 
-			echo "Inspection du service #$(service) : $$SERVICE_NAME"; 
-			docker inspect $$SERVICE_NAME --format '{{range .Config.Env}}{{.}}{{println}}{{end}}'; 
-		fi 
+	else \
+		SERVICE_NAME=$$(docker ps --format "{{.Names}}" | sed -n "$(service)p"); \
+		if [ -z "$$SERVICE_NAME" ]; then \
+			echo "Erreur: Numéro de service invalide : $(service)"; \
+			echo "Services disponibles :"; \
+			docker ps --format "{{.Names}}" | cat -n; \
+		else \
+			echo "Inspection du service #$(service) : $$SERVICE_NAME"; \
+			docker inspect $$SERVICE_NAME --format '{{range .Config.Env}}{{.}}{{println}}{{end}}'; \
+		fi; \
 	fi
 
 # --- Gestion Cron ---
