@@ -60,7 +60,11 @@ list-backups: ## Liste toutes les sauvegardes existantes, triées par date, dans
 		echo "Aucune sauvegarde trouvée."; \
 	else \
 		(echo "DATE|TAILLE|CHEMIN|NOM"; \
-		cd $$BACKUP_BASE_DIR && find . -type f -name '*.sql.gz' -printf '%TY-%Tm-%Td %TH:%TM|%kK|%h|%f\n' | sed 's|^./||') | column -t -s '|'; \
+		cd $$BACKUP_BASE_DIR && find . -type f -name '*.sql.gz' -printf '%TY-%Tm-%Td %TH:%TM|%p|%h|%f\n' | \
+		while IFS='|' read -r date path dir name; do \
+			size=$$(du -h "$$path" 2>/dev/null | cut -f1); \
+			echo "$$date|$$size|$$dir|$$name"; \
+		done | sed 's|^\./||; s|\t./|\t|') | column -t -s '|'; \
 	fi
 
 disk-usage: ## Affiche l espace disque total utilisé par les sauvegardes.
@@ -86,7 +90,7 @@ inspect: ## Inspecte un service par son numéro. Ex: make inspect service=1
 
 # --- Gestion Cron ---
 show-cron: ## Affiche la ligne de cron configurée pour ce script.
-	@echo "Cron jobs pour l unutilisateur '$(USER)' contenant 'backup.sh':"
+	@echo "Cron jobs pour utilisateur '$(USER)' contenant 'backup.sh':"
 	@crontab -l 2>/dev/null | grep "backup.sh" || echo "-> Aucun cron job trouvé pour backup.sh."
 
 install-cron: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
