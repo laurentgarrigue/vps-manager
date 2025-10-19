@@ -17,8 +17,8 @@ setup: ## Initialise l environnement (crée .env, dossiers, rend le script exéc
 	@if [ ! -f .env ]; then \
 		cp .env.dist .env; \
 		echo "Fichier .env créé. Veuillez le modifier avec vos vrais credentials."; \
-	else \
-		echo "Fichier .env déjà existant."; \
+	else 
+		echo "Fichier .env déjà existant."; 
 	fi
 	@. .env 2>/dev/null && mkdir -p $$BACKUP_BASE_DIR || echo "Variable BACKUP_ B_DIR non définie. Remplissez .env"
 	@chmod +x backup.sh
@@ -38,24 +38,30 @@ backup-service: ## Lance la sauvegarde pour un service spécifique par son numé
 		echo "Erreur: Vous devez spécifier un numéro de service. Ex: make backup-service service=<numéro>"; \
 		echo "Services configurés pour la sauvegarde :"; \
 		. .env; \
-		for service_config in "$${SERVICES_TO_BACKUP[@]}"; do \
-			echo $$service_config | cut -d';' -f1; \
+		for service_config in "$$${SERVICES_TO_BACKUP[@]}"; do \
+			echo "$$service_config" | cut -d';' -f1; \
 		done | cat -n; \
-	else \
-		. .env; \
-		SERVICE_NAME=$$(echo $${SERVICES_TO_BACKUP[$(service)-1]} | cut -d';' -f1); \
-		if [ -z "$$SERVICE_NAME" ]; then \
-			echo "Erreur: Numéro de service invalide : $(service)"; \
-		else \
-			echo "Lancement de la sauvegarde pour le service #$(service) : $$SERVICE_NAME"; \
-			./backup.sh "$$SERVICE_NAME"; \
-		fi \
+	else 
+		. .env; 
+		SERVICE_NAME=$$(echo "$$${SERVICES_TO_BACKUP[$(service)-1]}" | cut -d';' -f1); 
+		if [ -z "$$SERVICE_NAME" ]; then 
+			echo "Erreur: Numéro de service invalide : $(service)"; 
+		else 
+			echo "Lancement de la sauvegarde pour le service #$(service) : $$SERVICE_NAME"; 
+			./backup.sh "$$SERVICE_NAME"; 
+		fi 
 	fi
 
 # --- Supervision ---
-list-backups: ## Liste toutes les sauvegardes existantes, triées par date.
+list-backups: ## Liste toutes les sauvegardes existantes, triées par date, dans un tableau.
 	@echo "Liste des fichiers de sauvegarde..."
-	@. .env 2>/dev/null && find $$BACKUP_BASE_DIR -type f -name '*.sql.gz' -printf '%T@ %p\n' | sort -n | cut -d' ' -f2- || echo "Aucune sauvegarde trouvée."
+	@. .env 2>/dev/null && \
+	if [ ! -d "$$BACKUP_BASE_DIR" ] || [ -z "$$(ls -A $$BACKUP_BASE_DIR)" ]; then \
+		echo "Aucune sauvegarde trouvée."; \
+	else \
+		(echo "DATE\tTAILLE\tCHEMIN\tNOM"; \
+		find $$BACKUP_BASE_DIR -type f -name '*.sql.gz' -printf '%TY-%Tm-%Td %TH:%TM\t%s\t%h\t%f\n') | column -t -s '\t'; \
+	fi
 
 disk-usage: ## Affiche l espace disque total utilisé par les sauvegardes.
 	@echo "Espace disque utilisé par les sauvegardes..."
@@ -66,16 +72,16 @@ inspect: ## Inspecte un service par son numéro. Ex: make inspect service=1
 		echo "Erreur: Vous devez spécifier un numéro de service. Ex: make inspect service=<numéro>"; \
 		echo "Services disponibles :"; \
 		docker ps --format "{{.Names}}" | cat -n; \
-	else \
-		SERVICE_NAME=$$(docker ps --format "{{.Names}}" | sed -n "$(service)p"); \
-		if [ -z "$$SERVICE_NAME" ]; then \
-			echo "Erreur: Numéro de service invalide : $(service)"; \
-			echo "Services disponibles :"; \
-			docker ps --format "{{.Names}}" | cat -n; \
-		else \
-			echo "Inspection du service #$(service) : $$SERVICE_NAME"; \
-			docker inspect $$SERVICE_NAME --format '{{range .Config.Env}}{{.}}{{println}}{{end}}'; \
-		fi \
+	else 
+		SERVICE_NAME=$$(docker ps --format "{{.Names}}" | sed -n "$(service)p"); 
+		if [ -z "$$SERVICE_NAME" ]; then 
+			echo "Erreur: Numéro de service invalide : $(service)"; 
+			echo "Services disponibles :"; 
+			docker ps --format "{{.Names}}" | cat -n; 
+		else 
+			echo "Inspection du service #$(service) : $$SERVICE_NAME"; 
+			docker inspect $$SERVICE_NAME --format '{{range .Config.Env}}{{.}}{{println}}{{end}}'; 
+		fi 
 	fi
 
 # --- Gestion Cron ---
@@ -86,9 +92,9 @@ show-cron: ## Affiche la ligne de cron configurée pour ce script.
 install-cron: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
 	@CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $(CURDIR)/cron.log 2>&1"
 	if ! crontab -l 2>/dev/null | grep -q "backup.sh"; then \
-		(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
-		echo "Cron job installé avec succès."; \
-	else \
-		echo "Cron job déjà existant."; \
+		(crontab -l 2>/dev/null; echo "$$$$CRON_JOB") | crontab -; \
+		echo "Cron job installé avec succès."; 
+	else 
+		echo "Cron job déjà existant."; 
 	fi
 	@make --no-print-directory show-cron
