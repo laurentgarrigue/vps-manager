@@ -8,8 +8,8 @@ help: ## Affiche ce message d'aide.
 	@echo "Gestionnaire de Sauvegardes"
 	@echo "--------------------------"
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort | awk -F '##' '{ \
-        gsub(/:+ *$$/, "", $$1); \
-        printf "  %-20s %s\n", $$1, $$2 \
+        gsub(/:+ *$/, "", $1); \
+        printf "  %-20s %s\n", $1, $2 \
     }'
 
 # --- Installation ---
@@ -21,7 +21,7 @@ setup: ## Initialise l environnement (crée .env, dossiers, rend le script exéc
 	else \
 		echo "Fichier .env déjà existant."; \
 	fi
-	@source .env 2>/dev/null && mkdir -p $$BACKUP_BASE_DIR || echo "Variable BACKUP_ B_DIR non définie. Remplissez .env"
+	@source .env 2>/dev/null && mkdir -p $BACKUP_BASE_DIR || echo "Variable BACKUP_ B_DIR non définie. Remplissez .env"
 	@chmod +x backup.sh
 	@echo "Initialisation terminée. N oubliez pas de remplir .env !"
 
@@ -30,14 +30,18 @@ backup-all: ## Lance manuellement une sauvegarde complète de tous les services.
 	@echo "Lancement manuel des sauvegardes..."
 	@./backup.sh
 
+list-services: ## Liste les noms des services (conteneurs) en cours d'exécution.
+	@echo "Liste des services (conteneurs) en cours d'exécution..."
+	@docker ps --format "{{.Names}}"
+
 # --- Supervision ---
 list-backups: ## Liste toutes les sauvegardes existantes, triées par date.
 	@echo "Liste des fichiers de sauvegarde..."
-	@source .env 2>/dev/null && find $$BACKUP_BASE_DIR -type f -name '*.sql.gz' -printf '%T@ %p\n' | sort -n | cut -d' ' -f2- || echo "Aucune sauvegarde trouvée."
+	@source .env 2>/dev/null && find $BACKUP_BASE_DIR -type f -name '*.sql.gz' -printf '%T@ %p\n' | sort -n | cut -d' ' -f2- || echo "Aucune sauvegarde trouvée."
 
 disk-usage: ## Affiche l espace disque total utilisé par les sauvegardes.
 	@echo "Espace disque utilisé par les sauvegardes..."
-	@source .env 2>/dev/null && du -sh $$BACKUP_BASE_DIR || echo "Dossier de sauvegarde non trouvé."
+	@source .env 2>/dev/null && du -sh $BACKUP_BASE_DIR || echo "Dossier de sauvegarde non trouvé."
 
 # --- Gestion Cron ---
 show-cron: ## Affiche la ligne de cron configurée pour ce script.
@@ -47,7 +51,7 @@ show-cron: ## Affiche la ligne de cron configurée pour ce script.
 install-cron: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
 	@CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $(CURDIR)/cron.log 2>&1"
 	if ! crontab -l 2>/dev/null | grep -q "backup.sh"; then \
-		(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+		(crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -; \
 		echo "Cron job installé avec succès."; \
 	else \
 		echo "Cron job déjà existant."; \
