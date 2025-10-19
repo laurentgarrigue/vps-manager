@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 # Makefile pour la gestion des sauvegardes
 # Utilise des commentaires '##' pour l'auto-documentation via la commande 'make help'.
 
@@ -18,7 +20,7 @@ setup: ## Initialise l environnement (crée .env, dossiers, rend le script exéc
 	else \
 		echo "Fichier .env déjà existant."; \
 	fi
-	@source .env 2>/dev/null && mkdir -p $$BACKUP_BASE_DIR || echo "Variable BACKUP_ B_DIR non définie. Remplissez .env"
+	@. .env 2>/dev/null && mkdir -p $$BACKUP_BASE_DIR || echo "Variable BACKUP_ B_DIR non définie. Remplissez .env"
 	@chmod +x backup.sh
 	@echo "Initialisation terminée. N oubliez pas de remplir .env !"
 
@@ -31,14 +33,33 @@ list-services: ## Liste les noms des services (conteneurs) en cours d'exécution
 	@echo "Liste des services (conteneurs) en cours d'exécution..."
 	@docker ps --format "{{.Names}}"
 
+backup-service: ## Lance la sauvegarde pour un service spécifique par son numéro.
+	@if [ -z "$(service)" ]; then \
+		echo "Erreur: Vous devez spécifier un numéro de service. Ex: make backup-service service=<numéro>"; \
+		echo "Services configurés pour la sauvegarde :"; \
+		. .env; \
+		for service_config in "$${SERVICES_TO_BACKUP[@]}"; do \
+			echo $$service_config | cut -d';' -f1; \
+		done | cat -n; \
+	else \
+		. .env; \
+		SERVICE_NAME=$$(echo $${SERVICES_TO_BACKUP[$(service)-1]} | cut -d';' -f1); \
+		if [ -z "$$SERVICE_NAME" ]; then \
+			echo "Erreur: Numéro de service invalide : $(service)"; \
+		else \
+			echo "Lancement de la sauvegarde pour le service #$(service) : $$SERVICE_NAME"; \
+			./backup.sh "$$SERVICE_NAME"; \
+		fi \
+	fi
+
 # --- Supervision ---
 list-backups: ## Liste toutes les sauvegardes existantes, triées par date.
 	@echo "Liste des fichiers de sauvegarde..."
-	@source .env 2>/dev/null && find $$BACKUP_BASE_DIR -type f -name '*.sql.gz' -printf '%T@ %p\n' | sort -n | cut -d' ' -f2- || echo "Aucune sauvegarde trouvée."
+	@. .env 2>/dev/null && find $$BACKUP_BASE_DIR -type f -name '*.sql.gz' -printf '%T@ %p\n' | sort -n | cut -d' ' -f2- || echo "Aucune sauvegarde trouvée."
 
 disk-usage: ## Affiche l espace disque total utilisé par les sauvegardes.
 	@echo "Espace disque utilisé par les sauvegardes..."
-	@source .env 2>/dev/null && du -sh $$BACKUP_BASE_DIR || echo "Dossier de sauvegarde non trouvé."
+	@. .env 2>/dev/null && du -sh $$BACKUP_BASE_DIR || echo "Dossier de sauvegarde non trouvé."
 
 inspect: ## Inspecte un service par son numéro. Ex: make inspect service=1
 	@if [ -z "$(service)" ]; then \

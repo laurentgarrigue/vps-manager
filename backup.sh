@@ -15,6 +15,26 @@ fi
 # Date du jour au format YYYY-MM-DD
 TODAY=$(date +%F)
 
+# Si un service est passé en argument, on ne sauvegarde que celui-là
+if [ -n "$1" ]; then
+  echo "Sauvegarde demandée pour un seul service : $1"
+  SINGLE_SERVICE_CONFIG=""
+  for service_config in "${SERVICES_TO_BACKUP[@]}"; do
+    IFS=';' read -r SERVICE_NAME _ <<< "$service_config"
+    if [ "$SERVICE_NAME" = "$1" ]; then
+      SINGLE_SERVICE_CONFIG="$service_config"
+      break
+    fi
+  done
+
+  if [ -z "$SINGLE_SERVICE_CONFIG" ]; then
+    echo "Erreur : Le service '$1' n'a pas été trouvé dans la configuration SERVICES_TO_BACKUP." >&2
+    exit 1
+  fi
+  # On remplace la liste des services par le service unique
+  SERVICES_TO_BACKUP=("$SINGLE_SERVICE_CONFIG")
+fi
+
 # Boucle sur chaque service défini dans la configuration
 for service_config in "${SERVICES_TO_BACKUP[@]}"; do
   # Parse la ligne de configuration (avec les rétentions optionnelles)
