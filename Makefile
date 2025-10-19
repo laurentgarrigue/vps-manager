@@ -92,7 +92,7 @@ show-cron: ## Affiche la ligne de cron configurée pour ce script.
 install-cron: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
 	@CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $(CURDIR)/cron.log 2>&1"
 	if ! crontab -l 2>/dev/null | grep -q "backup.sh"; then \
-		(crontab -l 2>/dev/null; echo "$$$$CRON_JOB") | crontab -; \
+		(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
 		echo "Cron job installé avec succès."; 
 	else 
 		echo "Cron job déjà existant."; 
