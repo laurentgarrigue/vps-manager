@@ -89,13 +89,27 @@ inspect: ## Inspecte un service par son numéro. Ex: make inspect service=1
 	fi
 
 # --- Gestion Cron ---
-show-cron: ## Affiche la ligne de cron configurée pour ce script.
-	@echo "Cron jobs pour utilisateur '$(USER)' contenant 'backup.sh':"
-	@crontab -l 2>/dev/null | grep "backup.sh" || echo "-> Aucun cron job trouvé pour backup.sh."
+show-cron: ## Affiche la liste des cron configurés pour l'utilisateur.
+	@echo "Cron jobs pour utilisateur '$(USER)' :"
+	@crontab -l 2>/dev/null || echo "-> Aucun cron job trouvé pour $(USER)."
 
-install-cron: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
-	@CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $(CURDIR)/cron.log 2>&1"; \
-	if ! crontab -l 2>/dev/null | grep -q "backup.sh"; then \
+show-cron-log: # Affiche les logs des dernières exécutions de cron (sudo)
+	@echo "Cron jobs pour utilisateur '$(USER)' :"
+	@sudo journalctl -u cron -n 100
+
+install-cron-backups: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
+	@CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $(LOGS_BASE_DIR)/backups/cron.log 2>&1"; \
+	if ! crontab -l 2>/dev/null | grep -Fq "backup.sh"; then \
+		(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+		echo "Cron job installé avec succès."; \
+	else \
+		echo "Cron job déjà existant."; \
+	fi
+	@make --no-print-directory show-cron
+
+install-cron-matomo: ## Installe le cron job pour l exécution chaque heure de l'archivage matomo (ajoute si non présent).
+	@CRON_JOB="5 * * * * docker exec -t matomo_app /usr/local/bin/php /var/www/html/console core:archive --url=https://matomo.kayak-polo.info/ > $(LOGS_BASE_DIR)/matomo/matomo-archive.log 2>&1"; \
+	if ! crontab -l 2>/dev/null | grep -Fq "matomo"; then \
 		(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
 		echo "Cron job installé avec succès."; \
 	else \
