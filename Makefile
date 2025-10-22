@@ -4,7 +4,7 @@ SHELL := /bin/bash
 # Utilise des commentaires '##' pour l'auto-documentation via la commande 'make help'.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron install-cron
+.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo
 
 help: ## Affiche ce message d'aide.
 	@echo "Administration du VPS"
@@ -97,7 +97,7 @@ show-cron: ## Affiche la liste des cron configurés pour l'utilisateur.
 	@echo "Cron jobs pour utilisateur '$(USER)' :"
 	@crontab -l 2>/dev/null || echo "-> Aucun cron job trouvé pour $(USER)."
 
-show-cron-log: # Affiche les logs des dernières exécutions de cron (sudo)
+show-cron-log: ## Affiche les logs des dernières exécutions de cron (sudo)
 	@echo "Cron jobs exécutés récemment :"
 	@sudo journalctl -u cron -n 100 | grep -Ei "\(($(USER))\)|\(root\)"
 
