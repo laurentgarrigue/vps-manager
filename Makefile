@@ -34,23 +34,27 @@ list-services: ## Liste les noms des services (conteneurs) en cours d'exécution
 	@docker ps --format "{{.Names}}"
 
 backup-service: ## Lance la sauvegarde pour un service spécifique par son numéro.
-	@if [ -z "$(service)" ]; then \
-		echo "Erreur: Vous devez spécifier un numéro de service. Ex: make backup-service service=<numéro>"; \
-		echo "Services configurés pour la sauvegarde :"; \
-		. .env; \
-		for service_config in "$$${SERVICES_TO_BACKUP[@]}"; do \
-			echo "$$service_config" | cut -d';' -f1; \
-		done | cat -n; \
-	else \
-		. .env; \
-		SERVICE_NAME=$$(echo "$$${SERVICES_TO_BACKUP[$(service)-1]}" | cut -d';' -f1); \
-		if [ -z "$$SERVICE_NAME" ]; then \
-			echo "Erreur: Numéro de service invalide : $(service)"; \
+	@bash -c '\
+		source .env; \
+		if [ -z "$(service)" ]; then \
+			echo "Erreur: Vous devez spécifier un numéro de service. Ex: make backup-service service=<numéro>"; \
+			echo "Services configurés pour la sauvegarde :"; \
+			for i in "$${!SERVICES_TO_BACKUP[@]}"; do \
+				SERVICE_LINE="$${SERVICES_TO_BACKUP[$$i]}"; \
+				SERVICE_NAME="$$(echo "$$SERVICE_LINE" | cut -d";" -f1)"; \
+				printf "  %2d. %s\n" "$$(($$i + 1))" "$$SERVICE_NAME"; \
+			done; \
 		else \
+			INDEX=$$(($(service)-1)); \
+			if [ $$INDEX -lt 0 ] || [ $$INDEX -ge $${#SERVICES_TO_BACKUP[@]} ]; then \
+				echo "Erreur: Numéro de service invalide : $(service)"; \
+				exit 1; \
+			fi; \
+			SERVICE_LINE="$${SERVICES_TO_BACKUP[$$INDEX]}"; \
+			SERVICE_NAME="$$(echo "$$SERVICE_LINE" | cut -d";" -f1)"; \
 			echo "Lancement de la sauvegarde pour le service #$(service) : $$SERVICE_NAME"; \
 			./backup.sh "$$SERVICE_NAME"; \
-		fi; \
-	fi
+		fi'
 
 # --- Supervision ---
 list-backups: ## Liste toutes les sauvegardes existantes, triées par date, dans un tableau.
