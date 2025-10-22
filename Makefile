@@ -7,7 +7,7 @@ SHELL := /bin/bash
 .PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron install-cron
 
 help: ## Affiche ce message d'aide.
-	@echo "Gestionnaire de Sauvegardes"
+	@echo "Administration du VPS"
 	@echo "--------------------------"
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort | awk -F '##' '{ gsub(/:+ *$$/, "", $$1); printf "  %-20s %s\n", $$1, $$2 }'
 
@@ -94,8 +94,8 @@ show-cron: ## Affiche la liste des cron configurés pour l'utilisateur.
 	@crontab -l 2>/dev/null || echo "-> Aucun cron job trouvé pour $(USER)."
 
 show-cron-log: # Affiche les logs des dernières exécutions de cron (sudo)
-	@echo "Cron jobs pour utilisateur '$(USER)' :"
-	@sudo journalctl -u cron -n 100
+	@echo "Cron jobs exécutés récemment :"
+	@sudo journalctl -u cron -n 100 | grep -Ei "\(($(USER))\)|\(root\)"
 
 install-cron-backups: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
 	@CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $(LOGS_BASE_DIR)/backups/cron.log 2>&1"; \
