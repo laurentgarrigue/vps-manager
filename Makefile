@@ -108,22 +108,38 @@ show-cron-log: ## Affiche les logs des dernières exécutions de cron (sudo)
 install-cron-backups: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
 	@bash -c 'source .env && \
 	CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $$LOGS_BASE_DIR/backups/cron.log 2>&1"; \
-	if ! crontab -l 2>/dev/null | grep -Fq "backup.sh"; then \
-		(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+	EXISTING=$$(crontab -l 2>/dev/null | grep -F "backup.sh" | grep -v "^#" || true); \
+	if [ -z "$$EXISTING" ]; then \
+		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "backup.sh" | grep "^#" || true); \
+		if [ -n "$$COMMENTED" ]; then \
+			echo "Suppression de l'\''ancien cron commenté et installation du nouveau..."; \
+			crontab -l 2>/dev/null | grep -vF "backup.sh" | (cat; echo "$$CRON_JOB") | crontab -; \
+		else \
+			echo "Installation du nouveau cron job..."; \
+			(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+		fi; \
 		echo "Cron job installé avec succès."; \
 	else \
-		echo "Cron job déjà existant."; \
+		echo "Cron job déjà existant et actif."; \
 	fi'
 	@make --no-print-directory show-cron
 
 install-cron-matomo: ## Installe le cron job pour l exécution chaque heure de l'archivage matomo (ajoute si non présent).
 	@bash -c 'source .env && \
 	CRON_JOB="5 * * * * docker exec -t matomo_app /usr/local/bin/php /var/www/html/console core:archive --url=https://matomo.kayak-polo.info/ > $$LOGS_BASE_DIR/matomo/matomo-archive.log 2>&1"; \
-	if ! crontab -l 2>/dev/null | grep -Fq "matomo"; then \
-		(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+	EXISTING=$$(crontab -l 2>/dev/null | grep -F "matomo" | grep -v "^#" || true); \
+	if [ -z "$$EXISTING" ]; then \
+		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "matomo" | grep "^#" || true); \
+		if [ -n "$$COMMENTED" ]; then \
+			echo "Suppression de l'\''ancien cron commenté et installation du nouveau..."; \
+			crontab -l 2>/dev/null | grep -vF "matomo" | (cat; echo "$$CRON_JOB") | crontab -; \
+		else \
+			echo "Installation du nouveau cron job..."; \
+			(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+		fi; \
 		echo "Cron job installé avec succès."; \
 	else \
-		echo "Cron job déjà existant."; \
+		echo "Cron job déjà existant et actif."; \
 	fi'
 	@make --no-print-directory show-cron
 
