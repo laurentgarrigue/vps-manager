@@ -3,8 +3,12 @@ SHELL := /bin/bash
 # Makefile pour la gestion des sauvegardes
 # Utilise des commentaires '##' pour l'auto-documentation via la commande 'make help'.
 
+# Inclusion du fichier .env pour charger les variables d'environnement
+-include .env
+export
+
 .DEFAULT_GOAL := help
-.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo
+.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo restore-backup show-logs
 
 help: ## Affiche ce message d'aide.
 	@echo "Administration du VPS"
@@ -20,7 +24,11 @@ setup: ## Initialise l environnement (crée .env, dossiers, rend le script exéc
 	else \
 		echo "Fichier .env déjà existant."; \
 	fi
-	@. .env 2>/dev/null && mkdir -p $$BACKUP_BASE_DIR || echo "Variable BACKUP_BASE_DIR non définie. Remplissez .env"
+	@if [ -n "$(BACKUP_BASE_DIR)" ]; then \
+		mkdir -p $(BACKUP_BASE_DIR); \
+	else \
+		echo "Variable BACKUP_BASE_DIR non définie. Remplissez .env"; \
+	fi
 	@chmod +x backup.sh
 	@echo "Initialisation terminée. N oubliez pas de remplir .env !"
 
@@ -59,12 +67,11 @@ backup-service: ## Lance la sauvegarde pour un service spécifique par son numé
 # --- Supervision ---
 list-backups: ## Liste toutes les sauvegardes existantes, triées par date, dans un tableau.
 	@echo "Liste des fichiers de sauvegarde..."
-	@. .env 2>/dev/null && \
-	if [ ! -d "$$BACKUP_BASE_DIR" ] || [ -z "$$(ls -A $$BACKUP_BASE_DIR)" ]; then \
+	@if [ ! -d "$(BACKUP_BASE_DIR)" ] || [ -z "$$(ls -A $(BACKUP_BASE_DIR))" ]; then \
 		echo "Aucune sauvegarde trouvée."; \
 	else \
 		(echo "DATE|TAILLE|CHEMIN|NOM"; \
-		cd $$BACKUP_BASE_DIR && find . -type f -name '*.sql.gz' -printf '%TY-%Tm-%Td %TH:%TM|%p|%h|%f\n' | \
+		cd $(BACKUP_BASE_DIR) && find . -type f -name '*.sql.gz' -printf '%TY-%Tm-%Td %TH:%TM|%p|%h|%f\n' | \
 		while IFS='|' read -r date path dir name; do \
 			size=$$(du -h "$$path" 2>/dev/null | cut -f1); \
 			echo "$$date|$$size|$$dir|$$name"; \
@@ -73,7 +80,7 @@ list-backups: ## Liste toutes les sauvegardes existantes, triées par date, dans
 
 disk-usage: ## Affiche l espace disque total utilisé par les sauvegardes.
 	@echo "Espace disque utilisé par les sauvegardes..."
-	@. .env 2>/dev/null && du -sh $$BACKUP_BASE_DIR || echo "Dossier de sauvegarde non trouvé."
+	@du -sh $(BACKUP_BASE_DIR) 2>/dev/null || echo "Dossier de sauvegarde non trouvé."
 
 inspect: ## Inspecte un service par son numéro. Ex: make inspect service=1
 	@if [ -z "$(service)" ]; then \
@@ -120,3 +127,106 @@ install-cron-matomo: ## Installe le cron job pour l exécution chaque heure de l
 		echo "Cron job déjà existant."; \
 	fi
 	@make --no-print-directory show-cron
+
+# --- Restauration ---
+restore-backup: ## Restaure une sauvegarde dans un service. Ex: make restore-backup service=1 backup=<chemin>
+	@bash -c '\
+		source .env; \
+		if [ -z "$(service)" ] || [ -z "$(backup)" ]; then \
+			echo "Erreur: Vous devez spécifier un service et un fichier de sauvegarde."; \
+			echo "Usage: make restore-backup service=<numéro> backup=<chemin_fichier>"; \
+			echo ""; \
+			echo "Services configurés pour la restauration :"; \
+			for i in "$${!SERVICES_TO_BACKUP[@]}"; do \
+				SERVICE_LINE="$${SERVICES_TO_BACKUP[$$i]}"; \
+				SERVICE_NAME="$$(echo "$$SERVICE_LINE" | cut -d";" -f1)"; \
+				printf "  %2d. %s\n" "$$(($$i + 1))" "$$SERVICE_NAME"; \
+			done; \
+			echo ""; \
+			echo "Sauvegardes disponibles (utilisez la commande: make list-backups):"; \
+			exit 1; \
+		fi; \
+		INDEX=$$(($(service)-1)); \
+		if [ $$INDEX -lt 0 ] || [ $$INDEX -ge $${#SERVICES_TO_BACKUP[@]} ]; then \
+			echo "Erreur: Numéro de service invalide : $(service)"; \
+			exit 1; \
+		fi; \
+		SERVICE_LINE="$${SERVICES_TO_BACKUP[$$INDEX]}"; \
+		IFS=";" read -r SERVICE_NAME CONTAINER_NAME DB_NAME DB_USER DB_PASS _ _ <<< "$$SERVICE_LINE"; \
+		BACKUP_PATH="$(backup)"; \
+		if [ ! -f "$$BACKUP_PATH" ]; then \
+			if [ -f "$(BACKUP_BASE_DIR)/$$BACKUP_PATH" ]; then \
+				BACKUP_PATH="$(BACKUP_BASE_DIR)/$$BACKUP_PATH"; \
+			else \
+				echo "Erreur: Fichier de sauvegarde non trouvé : $(backup)"; \
+				exit 1; \
+			fi; \
+		fi; \
+		echo "=== ATTENTION ==="; \
+		echo "Vous êtes sur le point de restaurer la sauvegarde :"; \
+		echo "  Fichier : $$BACKUP_PATH"; \
+		echo "  Dans le service : $$SERVICE_NAME (conteneur: $$CONTAINER_NAME)"; \
+		echo "  Base de données : $$DB_NAME"; \
+		echo ""; \
+		echo "Cette opération va ÉCRASER toutes les données actuelles de la base !"; \
+		read -p "Êtes-vous sûr de vouloir continuer ? (tapez YES pour confirmer) : " CONFIRM; \
+		if [ "$$CONFIRM" != "YES" ]; then \
+			echo "Restauration annulée."; \
+			exit 0; \
+		fi; \
+		echo ""; \
+		echo "Démarrage de la restauration..."; \
+		if zcat "$$BACKUP_PATH" | docker exec -i "$$CONTAINER_NAME" mysql -u"$$DB_USER" -p"$$DB_PASS" "$$DB_NAME"; then \
+			echo "✓ Restauration réussie !"; \
+		else \
+			echo "✗ Erreur lors de la restauration."; \
+			exit 1; \
+		fi'
+
+# --- Logs ---
+show-logs: ## Affiche les derniers logs. Ex: make show-logs [folder=backups] [lines=50]
+	@bash -c '\
+		if [ ! -d "$(LOGS_BASE_DIR)" ]; then \
+			echo "Erreur: Dossier de logs non trouvé : $(LOGS_BASE_DIR)"; \
+			exit 1; \
+		fi; \
+		if [ -z "$(folder)" ]; then \
+			echo "Sous-dossiers disponibles dans $(LOGS_BASE_DIR) :"; \
+			echo ""; \
+			if [ -z "$$(ls -A $(LOGS_BASE_DIR) 2>/dev/null)" ]; then \
+				echo "  (aucun sous-dossier trouvé)"; \
+			else \
+				for dir in $(LOGS_BASE_DIR)/*/; do \
+					if [ -d "$$dir" ]; then \
+						dirname=$$(basename "$$dir"); \
+						file_count=$$(find "$$dir" -type f 2>/dev/null | wc -l); \
+						latest=$$(find "$$dir" -type f -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -1 | cut -d" " -f2-); \
+						if [ -n "$$latest" ]; then \
+							latest_name=$$(basename "$$latest"); \
+							printf "  - %-20s (%d fichier(s), dernier: %s)\n" "$$dirname" "$$file_count" "$$latest_name"; \
+						else \
+							printf "  - %-20s (vide)\n" "$$dirname"; \
+						fi; \
+					fi; \
+				done; \
+			fi; \
+			echo ""; \
+			echo "Usage: make show-logs folder=<nom_dossier> [lines=50]"; \
+		else \
+			LOG_DIR="$(LOGS_BASE_DIR)/$(folder)"; \
+			if [ ! -d "$$LOG_DIR" ]; then \
+				echo "Erreur: Sous-dossier non trouvé : $$LOG_DIR"; \
+				echo "Utilisez \"make show-logs\" pour voir la liste des dossiers disponibles."; \
+				exit 1; \
+			fi; \
+			LATEST_LOG=$$(find "$$LOG_DIR" -type f -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -1 | cut -d" " -f2-); \
+			if [ -z "$$LATEST_LOG" ]; then \
+				echo "Aucun fichier de log trouvé dans : $$LOG_DIR"; \
+			else \
+				LOG_LINES="$${lines:-50}"; \
+				echo "Fichier de log le plus récent : $$LATEST_LOG"; \
+				echo "Affichage des $$LOG_LINES dernières lignes :"; \
+				echo "----------------------------------------"; \
+				tail -n $$LOG_LINES "$$LATEST_LOG"; \
+			fi; \
+		fi'
