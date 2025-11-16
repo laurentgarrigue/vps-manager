@@ -3,10 +3,6 @@ SHELL := /bin/bash
 # Makefile pour la gestion des sauvegardes
 # Utilise des commentaires '##' pour l'auto-documentation via la commande 'make help'.
 
-# Inclusion du fichier .env pour charger les variables d'environnement
--include .env
-export
-
 .DEFAULT_GOAL := help
 .PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo restore-backup show-logs
 
@@ -24,11 +20,11 @@ setup: ## Initialise l environnement (crée .env, dossiers, rend le script exéc
 	else \
 		echo "Fichier .env déjà existant."; \
 	fi
-	@if [ -n "$(BACKUP_BASE_DIR)" ]; then \
-		mkdir -p $(BACKUP_BASE_DIR); \
+	@bash -c 'source .env && if [ -n "$$BACKUP_BASE_DIR" ]; then \
+		mkdir -p $$BACKUP_BASE_DIR; \
 	else \
 		echo "Variable BACKUP_BASE_DIR non définie. Remplissez .env"; \
-	fi
+	fi'
 	@chmod +x backup.sh
 	@echo "Initialisation terminée. N oubliez pas de remplir .env !"
 
@@ -67,20 +63,21 @@ backup-service: ## Lance la sauvegarde pour un service spécifique par son numé
 # --- Supervision ---
 list-backups: ## Liste toutes les sauvegardes existantes, triées par date, dans un tableau.
 	@echo "Liste des fichiers de sauvegarde..."
-	@if [ ! -d "$(BACKUP_BASE_DIR)" ] || [ -z "$$(ls -A $(BACKUP_BASE_DIR))" ]; then \
+	@bash -c 'source .env && \
+	if [ ! -d "$$BACKUP_BASE_DIR" ] || [ -z "$$(ls -A $$BACKUP_BASE_DIR)" ]; then \
 		echo "Aucune sauvegarde trouvée."; \
 	else \
 		(echo "DATE|TAILLE|CHEMIN|NOM"; \
-		cd $(BACKUP_BASE_DIR) && find . -type f -name '*.sql.gz' -printf '%TY-%Tm-%Td %TH:%TM|%p|%h|%f\n' | \
-		while IFS='|' read -r date path dir name; do \
+		cd $$BACKUP_BASE_DIR && find . -type f -name "*.sql.gz" -printf "%TY-%Tm-%Td %TH:%TM|%p|%h|%f\n" | \
+		while IFS="|" read -r date path dir name; do \
 			size=$$(du -h "$$path" 2>/dev/null | cut -f1); \
 			echo "$$date|$$size|$$dir|$$name"; \
-		done | sed 's|^\./||; s|\t./|\t|') | column -t -s '|'; \
-	fi
+		done | sed "s|^\./||; s|\t./|\t|") | column -t -s "|"; \
+	fi'
 
 disk-usage: ## Affiche l espace disque total utilisé par les sauvegardes.
 	@echo "Espace disque utilisé par les sauvegardes..."
-	@du -sh $(BACKUP_BASE_DIR) 2>/dev/null || echo "Dossier de sauvegarde non trouvé."
+	@bash -c 'source .env && du -sh $$BACKUP_BASE_DIR 2>/dev/null || echo "Dossier de sauvegarde non trouvé."'
 
 inspect: ## Inspecte un service par son numéro. Ex: make inspect service=1
 	@if [ -z "$(service)" ]; then \
@@ -109,23 +106,25 @@ show-cron-log: ## Affiche les logs des dernières exécutions de cron (sudo)
 	@sudo journalctl -u cron -n 100 | grep -Ei "\(($(USER))\)|\(root\)"
 
 install-cron-backups: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
-	@CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $(LOGS_BASE_DIR)/backups/cron.log 2>&1"; \
+	@bash -c 'source .env && \
+	CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $$LOGS_BASE_DIR/backups/cron.log 2>&1"; \
 	if ! crontab -l 2>/dev/null | grep -Fq "backup.sh"; then \
 		(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
 		echo "Cron job installé avec succès."; \
 	else \
 		echo "Cron job déjà existant."; \
-	fi
+	fi'
 	@make --no-print-directory show-cron
 
 install-cron-matomo: ## Installe le cron job pour l exécution chaque heure de l'archivage matomo (ajoute si non présent).
-	@CRON_JOB="5 * * * * docker exec -t matomo_app /usr/local/bin/php /var/www/html/console core:archive --url=https://matomo.kayak-polo.info/ > $(LOGS_BASE_DIR)/matomo/matomo-archive.log 2>&1"; \
+	@bash -c 'source .env && \
+	CRON_JOB="5 * * * * docker exec -t matomo_app /usr/local/bin/php /var/www/html/console core:archive --url=https://matomo.kayak-polo.info/ > $$LOGS_BASE_DIR/matomo/matomo-archive.log 2>&1"; \
 	if ! crontab -l 2>/dev/null | grep -Fq "matomo"; then \
 		(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
 		echo "Cron job installé avec succès."; \
 	else \
 		echo "Cron job déjà existant."; \
-	fi
+	fi'
 	@make --no-print-directory show-cron
 
 # --- Restauration ---
@@ -155,8 +154,8 @@ restore-backup: ## Restaure une sauvegarde dans un service. Ex: make restore-bac
 		IFS=";" read -r SERVICE_NAME CONTAINER_NAME DB_NAME DB_USER DB_PASS _ _ <<< "$$SERVICE_LINE"; \
 		BACKUP_PATH="$(backup)"; \
 		if [ ! -f "$$BACKUP_PATH" ]; then \
-			if [ -f "$(BACKUP_BASE_DIR)/$$BACKUP_PATH" ]; then \
-				BACKUP_PATH="$(BACKUP_BASE_DIR)/$$BACKUP_PATH"; \
+			if [ -f "$$BACKUP_BASE_DIR/$$BACKUP_PATH" ]; then \
+				BACKUP_PATH="$$BACKUP_BASE_DIR/$$BACKUP_PATH"; \
 			else \
 				echo "Erreur: Fichier de sauvegarde non trouvé : $(backup)"; \
 				exit 1; \
@@ -185,18 +184,18 @@ restore-backup: ## Restaure une sauvegarde dans un service. Ex: make restore-bac
 
 # --- Logs ---
 show-logs: ## Affiche les derniers logs. Ex: make show-logs [folder=backups] [lines=50]
-	@bash -c '\
-		if [ ! -d "$(LOGS_BASE_DIR)" ]; then \
-			echo "Erreur: Dossier de logs non trouvé : $(LOGS_BASE_DIR)"; \
+	@bash -c 'source .env && \
+		if [ ! -d "$$LOGS_BASE_DIR" ]; then \
+			echo "Erreur: Dossier de logs non trouvé : $$LOGS_BASE_DIR"; \
 			exit 1; \
 		fi; \
 		if [ -z "$(folder)" ]; then \
-			echo "Sous-dossiers disponibles dans $(LOGS_BASE_DIR) :"; \
+			echo "Sous-dossiers disponibles dans $$LOGS_BASE_DIR :"; \
 			echo ""; \
-			if [ -z "$$(ls -A $(LOGS_BASE_DIR) 2>/dev/null)" ]; then \
+			if [ -z "$$(ls -A $$LOGS_BASE_DIR 2>/dev/null)" ]; then \
 				echo "  (aucun sous-dossier trouvé)"; \
 			else \
-				for dir in $(LOGS_BASE_DIR)/*/; do \
+				for dir in $$LOGS_BASE_DIR/*/; do \
 					if [ -d "$$dir" ]; then \
 						dirname=$$(basename "$$dir"); \
 						file_count=$$(find "$$dir" -type f 2>/dev/null | wc -l); \
@@ -213,7 +212,7 @@ show-logs: ## Affiche les derniers logs. Ex: make show-logs [folder=backups] [li
 			echo ""; \
 			echo "Usage: make show-logs folder=<nom_dossier> [lines=50]"; \
 		else \
-			LOG_DIR="$(LOGS_BASE_DIR)/$(folder)"; \
+			LOG_DIR="$$LOGS_BASE_DIR/$(folder)"; \
 			if [ ! -d "$$LOG_DIR" ]; then \
 				echo "Erreur: Sous-dossier non trouvé : $$LOG_DIR"; \
 				echo "Utilisez \"make show-logs\" pour voir la liste des dossiers disponibles."; \
