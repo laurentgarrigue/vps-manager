@@ -4,7 +4,7 @@ SHELL := /bin/bash
 # Utilise des commentaires '##' pour l'auto-documentation via la commande 'make help'.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo restore-backup show-logs
+.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo install-cron-maj-licencies-preprod install-cron-maj-licencies-prod install-cron-maj-verrou-presences-preprod install-cron-maj-verrou-presences-prod restore-backup show-logs
 
 help: ## Affiche ce message d'aide.
 	@echo "Administration du VPS"
@@ -133,6 +133,82 @@ install-cron-matomo: ## Installe le cron job pour l exécution chaque heure de l
 		if [ -n "$$COMMENTED" ]; then \
 			echo "Suppression de l'\''ancien cron commenté et installation du nouveau..."; \
 			crontab -l 2>/dev/null | grep -vF "matomo" | (cat; echo "$$CRON_JOB") | crontab -; \
+		else \
+			echo "Installation du nouveau cron job..."; \
+			(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+		fi; \
+		echo "Cron job installé avec succès."; \
+	else \
+		echo "Cron job déjà existant et actif."; \
+	fi'
+	@make --no-print-directory show-cron
+
+install-cron-maj-licencies-preprod: ## Installe le cron job pour la MAJ des licenciés (preprod) tous les jours à 6h30.
+	@bash -c 'source .env && \
+	CRON_JOB="30 6 * * * docker exec -t kpi_preprod_php /usr/local/bin/php /var/www/html/commun/cron_maj_licencies.php > $$LOGS_BASE_DIR/kpi_preprod/maj-licencies.log 2>&1"; \
+	EXISTING=$$(crontab -l 2>/dev/null | grep -F "cron_maj_licencies.php" | grep -F "kpi_preprod_php" | grep -v "^#" || true); \
+	if [ -z "$$EXISTING" ]; then \
+		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "cron_maj_licencies.php" | grep -F "kpi_preprod_php" | grep "^#" || true); \
+		if [ -n "$$COMMENTED" ]; then \
+			echo "Suppression de l'\''ancien cron commenté et installation du nouveau..."; \
+			crontab -l 2>/dev/null | grep -vF "kpi_preprod_php /usr/local/bin/php /var/www/html/commun/cron_maj_licencies.php" | (cat; echo "$$CRON_JOB") | crontab -; \
+		else \
+			echo "Installation du nouveau cron job..."; \
+			(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+		fi; \
+		echo "Cron job installé avec succès."; \
+	else \
+		echo "Cron job déjà existant et actif."; \
+	fi'
+	@make --no-print-directory show-cron
+
+install-cron-maj-licencies-prod: ## Installe le cron job pour la MAJ des licenciés (prod) tous les jours à 6h30.
+	@bash -c 'source .env && \
+	CRON_JOB="30 6 * * * docker exec -t kpi_php /usr/local/bin/php /var/www/html/commun/cron_maj_licencies.php > $$LOGS_BASE_DIR/kpi/maj-licencies.log 2>&1"; \
+	EXISTING=$$(crontab -l 2>/dev/null | grep -F "cron_maj_licencies.php" | grep -F "kpi_php" | grep -v "^#" || true); \
+	if [ -z "$$EXISTING" ]; then \
+		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "cron_maj_licencies.php" | grep -F "kpi_php" | grep "^#" || true); \
+		if [ -n "$$COMMENTED" ]; then \
+			echo "Suppression de l'\''ancien cron commenté et installation du nouveau..."; \
+			crontab -l 2>/dev/null | grep -vF "kpi_php /usr/local/bin/php /var/www/html/commun/cron_maj_licencies.php" | (cat; echo "$$CRON_JOB") | crontab -; \
+		else \
+			echo "Installation du nouveau cron job..."; \
+			(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+		fi; \
+		echo "Cron job installé avec succès."; \
+	else \
+		echo "Cron job déjà existant et actif."; \
+	fi'
+	@make --no-print-directory show-cron
+
+install-cron-maj-verrou-presences-preprod: ## Installe le cron job pour le verrou des présences (preprod) tous les jours à 5h00.
+	@bash -c 'source .env && \
+	CRON_JOB="0 5 * * * docker exec -t kpi_preprod_php /usr/local/bin/php /var/www/html/commun/cron_verrou_presences.php > $$LOGS_BASE_DIR/kpi_preprod/verrou-presences.log 2>&1"; \
+	EXISTING=$$(crontab -l 2>/dev/null | grep -F "cron_verrou_presences.php" | grep -F "kpi_preprod_php" | grep -v "^#" || true); \
+	if [ -z "$$EXISTING" ]; then \
+		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "cron_verrou_presences.php" | grep -F "kpi_preprod_php" | grep "^#" || true); \
+		if [ -n "$$COMMENTED" ]; then \
+			echo "Suppression de l'\''ancien cron commenté et installation du nouveau..."; \
+			crontab -l 2>/dev/null | grep -vF "kpi_preprod_php /usr/local/bin/php /var/www/html/commun/cron_verrou_presences.php" | (cat; echo "$$CRON_JOB") | crontab -; \
+		else \
+			echo "Installation du nouveau cron job..."; \
+			(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+		fi; \
+		echo "Cron job installé avec succès."; \
+	else \
+		echo "Cron job déjà existant et actif."; \
+	fi'
+	@make --no-print-directory show-cron
+
+install-cron-maj-verrou-presences-prod: ## Installe le cron job pour le verrou des présences (prod) tous les jours à 5h00.
+	@bash -c 'source .env && \
+	CRON_JOB="0 5 * * * docker exec -t kpi_php /usr/local/bin/php /var/www/html/commun/cron_verrou_presences.php > $$LOGS_BASE_DIR/kpi/verrou-presences.log 2>&1"; \
+	EXISTING=$$(crontab -l 2>/dev/null | grep -F "cron_verrou_presences.php" | grep -F "kpi_php" | grep -v "^#" || true); \
+	if [ -z "$$EXISTING" ]; then \
+		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "cron_verrou_presences.php" | grep -F "kpi_php" | grep "^#" || true); \
+		if [ -n "$$COMMENTED" ]; then \
+			echo "Suppression de l'\''ancien cron commenté et installation du nouveau..."; \
+			crontab -l 2>/dev/null | grep -vF "kpi_php /usr/local/bin/php /var/www/html/commun/cron_verrou_presences.php" | (cat; echo "$$CRON_JOB") | crontab -; \
 		else \
 			echo "Installation du nouveau cron job..."; \
 			(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
