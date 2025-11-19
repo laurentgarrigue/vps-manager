@@ -59,7 +59,7 @@ for service_config in "${SERVICES_TO_BACKUP[@]}"; do
 
   # --- Exécution de la sauvegarde ---
   echo "Démarrage du dump de la base '$DB_NAME' depuis le conteneur '$CONTAINER_NAME'..."
-  if docker exec "$CONTAINER_NAME" mysqldump -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" | gzip > "$BACKUP_FILE"; then
+  if docker exec "$CONTAINER_NAME" mariadb-dump -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" | gzip > "$BACKUP_FILE"; then
     echo "Sauvegarde réussie dans : $BACKUP_FILE"
   else
     echo "Erreur lors de la sauvegarde de '$DB_NAME'. Suppression du fichier partiel." >&2
