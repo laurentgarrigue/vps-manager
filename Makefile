@@ -107,7 +107,7 @@ show-cron-log: ## Affiche les logs des dernières exécutions de cron (sudo)
 
 install-cron-backups: ## Installe le cron job pour l exécution quotidienne (ajoute si non présent).
 	@bash -c 'source .env && \
-	CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $$LOGS_BASE_DIR/backups/cron.log 2>&1"; \
+	CRON_JOB="0 2 * * * /bin/bash $(CURDIR)/backup.sh >> $$LOGS_BASE_DIR/cron/backups.log 2>&1"; \
 	EXISTING=$$(crontab -l 2>/dev/null | grep -F "backup.sh" | grep -v "^#" || true); \
 	if [ -z "$$EXISTING" ]; then \
 		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "backup.sh" | grep "^#" || true); \
@@ -126,7 +126,7 @@ install-cron-backups: ## Installe le cron job pour l exécution quotidienne (ajo
 
 install-cron-matomo: ## Installe le cron job pour l exécution chaque heure de l'archivage matomo (ajoute si non présent).
 	@bash -c 'source .env && \
-	CRON_JOB="5 * * * * docker exec -t matomo_app /usr/local/bin/php /var/www/html/console core:archive --url=https://matomo.kayak-polo.info/ > $$LOGS_BASE_DIR/matomo/matomo-archive.log 2>&1"; \
+	CRON_JOB="5 * * * * docker exec -t matomo_app /usr/local/bin/php /var/www/html/console core:archive --url=https://matomo.kayak-polo.info/ > $$LOGS_BASE_DIR/cron/matomo-archive.log 2>&1"; \
 	EXISTING=$$(crontab -l 2>/dev/null | grep -F "matomo" | grep -v "^#" || true); \
 	if [ -z "$$EXISTING" ]; then \
 		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "matomo" | grep "^#" || true); \
@@ -145,7 +145,7 @@ install-cron-matomo: ## Installe le cron job pour l exécution chaque heure de l
 
 install-cron-maj-licencies-preprod: ## Installe le cron job pour la MAJ des licenciés (preprod) tous les jours à 6h30.
 	@bash -c 'source .env && \
-	CRON_JOB="30 6 * * * docker exec -t kpi_preprod_php /usr/local/bin/php /var/www/html/commun/cron_maj_licencies.php > $$LOGS_BASE_DIR/kpi_preprod/maj-licencies.log 2>&1"; \
+	CRON_JOB="30 6 * * * docker exec -t kpi_preprod_php /usr/local/bin/php /var/www/html/commun/cron_maj_licencies.php > $$LOGS_BASE_DIR/cron/preprod-maj-licencies.log 2>&1"; \
 	EXISTING=$$(crontab -l 2>/dev/null | grep -F "cron_maj_licencies.php" | grep -F "kpi_preprod_php" | grep -v "^#" || true); \
 	if [ -z "$$EXISTING" ]; then \
 		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "cron_maj_licencies.php" | grep -F "kpi_preprod_php" | grep "^#" || true); \
@@ -164,7 +164,7 @@ install-cron-maj-licencies-preprod: ## Installe le cron job pour la MAJ des lice
 
 install-cron-maj-licencies-prod: ## Installe le cron job pour la MAJ des licenciés (prod) tous les jours à 6h30.
 	@bash -c 'source .env && \
-	CRON_JOB="30 6 * * * docker exec -t kpi_php /usr/local/bin/php /var/www/html/commun/cron_maj_licencies.php > $$LOGS_BASE_DIR/kpi/maj-licencies.log 2>&1"; \
+	CRON_JOB="30 6 * * * docker exec -t kpi_php /usr/local/bin/php /var/www/html/commun/cron_maj_licencies.php > $$LOGS_BASE_DIR/cron/maj-licencies.log 2>&1"; \
 	EXISTING=$$(crontab -l 2>/dev/null | grep -F "cron_maj_licencies.php" | grep -F "kpi_php" | grep -v "^#" || true); \
 	if [ -z "$$EXISTING" ]; then \
 		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "cron_maj_licencies.php" | grep -F "kpi_php" | grep "^#" || true); \
@@ -183,7 +183,7 @@ install-cron-maj-licencies-prod: ## Installe le cron job pour la MAJ des licenci
 
 install-cron-verrou-presences-preprod: ## Installe le cron job pour le verrou des présences (preprod) tous les jours à 5h00.
 	@bash -c 'source .env && \
-	CRON_JOB="0 5 * * * docker exec -t kpi_preprod_php /usr/local/bin/php /var/www/html/commun/cron_verrou_presences.php > $$LOGS_BASE_DIR/kpi_preprod/verrou-presences.log 2>&1"; \
+	CRON_JOB="0 5 * * * docker exec -t kpi_preprod_php /usr/local/bin/php /var/www/html/commun/cron_verrou_presences.php > $$LOGS_BASE_DIR/cron/preprod-verrou-presences.log 2>&1"; \
 	EXISTING=$$(crontab -l 2>/dev/null | grep -F "cron_verrou_presences.php" | grep -F "kpi_preprod_php" | grep -v "^#" || true); \
 	if [ -z "$$EXISTING" ]; then \
 		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "cron_verrou_presences.php" | grep -F "kpi_preprod_php" | grep "^#" || true); \
@@ -202,7 +202,7 @@ install-cron-verrou-presences-preprod: ## Installe le cron job pour le verrou de
 
 install-cron-verrou-presences-prod: ## Installe le cron job pour le verrou des présences (prod) tous les jours à 5h00.
 	@bash -c 'source .env && \
-	CRON_JOB="0 5 * * * docker exec -t kpi_php /usr/local/bin/php /var/www/html/commun/cron_verrou_presences.php > $$LOGS_BASE_DIR/kpi/verrou-presences.log 2>&1"; \
+	CRON_JOB="0 5 * * * docker exec -t kpi_php /usr/local/bin/php /var/www/html/commun/cron_verrou_presences.php > $$LOGS_BASE_DIR/cron/verrou-presences.log 2>&1"; \
 	EXISTING=$$(crontab -l 2>/dev/null | grep -F "cron_verrou_presences.php" | grep -F "kpi_php" | grep -v "^#" || true); \
 	if [ -z "$$EXISTING" ]; then \
 		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "cron_verrou_presences.php" | grep -F "kpi_php" | grep "^#" || true); \
