@@ -346,3 +346,256 @@ show-logs: ## Affiche les derniers logs. Ex: make show-logs [folder=backups] [li
 				tail -n $$LOG_LINES "$$LATEST_LOG"; \
 			fi; \
 		fi'
+
+# --- Supervision Système ---
+show-logrotate: ## Affiche la configuration LogRotate du système.
+	@echo "=== Configuration LogRotate ==="
+	@echo ""
+	@echo "Fichiers de configuration LogRotate :"
+	@echo "-------------------------------------"
+	@if [ -f /etc/logrotate.conf ]; then \
+		echo ""; \
+		echo "📄 Configuration principale : /etc/logrotate.conf"; \
+		echo ""; \
+		cat /etc/logrotate.conf; \
+	else \
+		echo "⚠️  Fichier /etc/logrotate.conf non trouvé."; \
+	fi
+	@echo ""
+	@echo "-------------------------------------"
+	@echo "Configurations spécifiques (/etc/logrotate.d/) :"
+	@echo "-------------------------------------"
+	@if [ -d /etc/logrotate.d ]; then \
+		for file in /etc/logrotate.d/*; do \
+			if [ -f "$$file" ]; then \
+				echo ""; \
+				echo "📄 $$(basename $$file)"; \
+				echo "---"; \
+				cat "$$file"; \
+				echo ""; \
+			fi; \
+		done; \
+	else \
+		echo "⚠️  Dossier /etc/logrotate.d/ non trouvé."; \
+	fi
+
+show-fail2ban: ## Affiche le statut et la configuration de Fail2Ban.
+	@echo "=== Fail2Ban - Statut et Configuration ==="
+	@echo ""
+	@if ! command -v fail2ban-client &> /dev/null; then \
+		echo "⚠️  Fail2Ban n'est pas installé sur ce système."; \
+		exit 0; \
+	fi
+	@echo "📊 Statut du service Fail2Ban :"
+	@echo "-------------------------------"
+	@sudo systemctl status fail2ban --no-pager -l || echo "⚠️  Impossible de récupérer le statut."
+	@echo ""
+	@echo "🔒 Jails actives :"
+	@echo "------------------"
+	@sudo fail2ban-client status 2>/dev/null || echo "⚠️  Impossible de récupérer les jails."
+	@echo ""
+	@echo "📋 Détails des jails :"
+	@echo "----------------------"
+	@for jail in $$(sudo fail2ban-client status 2>/dev/null | grep "Jail list:" | sed 's/.*://; s/,//g'); do \
+		echo ""; \
+		echo "Jail: $$jail"; \
+		sudo fail2ban-client status $$jail 2>/dev/null || true; \
+		echo ""; \
+	done
+	@echo "📄 Configuration principale (/etc/fail2ban/jail.local) :"
+	@echo "--------------------------------------------------------"
+	@if [ -f /etc/fail2ban/jail.local ]; then \
+		cat /etc/fail2ban/jail.local; \
+	elif [ -f /etc/fail2ban/jail.conf ]; then \
+		echo "⚠️  jail.local non trouvé, affichage de jail.conf :"; \
+		cat /etc/fail2ban/jail.conf; \
+	else \
+		echo "⚠️  Aucun fichier de configuration trouvé."; \
+	fi
+
+show-mail-config: ## Affiche la configuration de l'envoi de mails (Postfix/SSMTP).
+	@echo "=== Configuration de l'envoi de mails ==="
+	@echo ""
+	@if command -v postfix &> /dev/null; then \
+		echo "📧 Postfix détecté"; \
+		echo "-----------------"; \
+		echo ""; \
+		echo "Statut du service :"; \
+		sudo systemctl status postfix --no-pager -l 2>/dev/null || echo "⚠️  Service non actif"; \
+		echo ""; \
+		echo "Configuration principale (/etc/postfix/main.cf) :"; \
+		echo "------------------------------------------------"; \
+		if [ -f /etc/postfix/main.cf ]; then \
+			grep -v "^#" /etc/postfix/main.cf | grep -v "^$$"; \
+		else \
+			echo "⚠️  Fichier non trouvé"; \
+		fi; \
+		echo ""; \
+		echo "Aliases (/etc/aliases) :"; \
+		echo "------------------------"; \
+		if [ -f /etc/aliases ]; then \
+			grep -v "^#" /etc/aliases | grep -v "^$$"; \
+		else \
+			echo "⚠️  Fichier non trouvé"; \
+		fi; \
+	elif command -v ssmtp &> /dev/null; then \
+		echo "📧 SSMTP détecté"; \
+		echo "----------------"; \
+		echo ""; \
+		if [ -f /etc/ssmtp/ssmtp.conf ]; then \
+			echo "Configuration (/etc/ssmtp/ssmtp.conf) :"; \
+			echo "---------------------------------------"; \
+			sudo cat /etc/ssmtp/ssmtp.conf 2>/dev/null || echo "⚠️  Accès refusé"; \
+		else \
+			echo "⚠️  Fichier de configuration non trouvé"; \
+		fi; \
+	elif command -v sendmail &> /dev/null; then \
+		echo "📧 Sendmail détecté"; \
+		echo "-------------------"; \
+		echo ""; \
+		echo "Statut du service :"; \
+		sudo systemctl status sendmail --no-pager -l 2>/dev/null || echo "⚠️  Service non actif"; \
+	else \
+		echo "⚠️  Aucun agent de messagerie détecté (Postfix, SSMTP, Sendmail)"; \
+	fi
+	@echo ""
+	@echo "Test de configuration mail :"
+	@echo "----------------------------"
+	@echo "Pour tester l'envoi : echo 'Test' | mail -s 'Test VPS' votre@email.com"
+
+show-server-status: ## Affiche l'état général du serveur avec KPIs visuels.
+	@echo "╔════════════════════════════════════════════════════════════╗"
+	@echo "║           📊 TABLEAU DE BORD DU SERVEUR VPS               ║"
+	@echo "╚════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "🖥️  SYSTÈME"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "Hostname      : $$(hostname)"
+	@echo "OS            : $$(lsb_release -d 2>/dev/null | cut -f2 || cat /etc/os-release | grep PRETTY_NAME | cut -d'=' -f2 | tr -d '\"')"
+	@echo "Kernel        : $$(uname -r)"
+	@echo "Uptime        : $$(uptime -p)"
+	@echo "Date          : $$(date '+%Y-%m-%d %H:%M:%S %Z')"
+	@echo ""
+	@echo "⚡ PERFORMANCES CPU"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "Architecture  : $$(uname -m)"
+	@echo "CPU(s)        : $$(nproc) core(s)"
+	@echo "Load Average  : $$(cat /proc/loadavg | cut -d' ' -f1-3)"
+	@bash -c 'LOAD=$$(cat /proc/loadavg | cut -d" " -f1); \
+		CORES=$$(nproc); \
+		LOAD_PERCENT=$$(echo "scale=1; ($$LOAD / $$CORES) * 100" | bc 2>/dev/null || echo "N/A"); \
+		echo "CPU Usage     : $$LOAD_PERCENT%"'
+	@echo ""
+	@echo "💾 MÉMOIRE"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@free -h | awk 'NR==1{printf "%-14s %10s %10s %10s %10s\n", "", $$2, $$3, $$4, $$7} NR==2{printf "%-14s %10s %10s %10s %10s\n", "RAM:", $$2, $$3, $$4, $$7}'
+	@bash -c 'MEM_TOTAL=$$(free | awk "NR==2{print \$$2}"); \
+		MEM_USED=$$(free | awk "NR==2{print \$$3}"); \
+		MEM_PERCENT=$$(echo "scale=1; ($$MEM_USED / $$MEM_TOTAL) * 100" | bc); \
+		BAR_LEN=30; \
+		FILLED=$$(echo "scale=0; $$BAR_LEN * $$MEM_USED / $$MEM_TOTAL" | bc); \
+		EMPTY=$$(echo "$$BAR_LEN - $$FILLED" | bc); \
+		printf "Usage         : ["; \
+		for i in $$(seq 1 $$FILLED); do printf "█"; done; \
+		for i in $$(seq 1 $$EMPTY); do printf "░"; done; \
+		printf "] $$MEM_PERCENT%%\n"'
+	@echo ""
+	@echo "💿 DISQUES"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@df -h | awk 'NR==1 || $$1 ~ /^\/dev\// {printf "%-20s %8s %8s %8s %6s %s\n", $$1, $$2, $$3, $$4, $$5, $$6}' | while IFS= read -r line; do \
+		if echo "$$line" | grep -q "Filesystem"; then \
+			echo "$$line"; \
+		else \
+			USAGE=$$(echo "$$line" | awk '{print $$5}' | tr -d '%'); \
+			if [ "$$USAGE" -ge 90 ] 2>/dev/null; then \
+				echo "⚠️  $$line"; \
+			elif [ "$$USAGE" -ge 75 ] 2>/dev/null; then \
+				echo "⚡ $$line"; \
+			else \
+				echo "✓  $$line"; \
+			fi; \
+		fi; \
+	done
+	@echo ""
+	@echo "🐳 DOCKER"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@if command -v docker &> /dev/null; then \
+		echo "Version       : $$(docker --version | cut -d' ' -f3 | tr -d ',')"; \
+		echo "Conteneurs    : $$(docker ps -q | wc -l) actifs / $$(docker ps -aq | wc -l) total"; \
+		echo "Images        : $$(docker images -q | wc -l)"; \
+		echo "Volumes       : $$(docker volume ls -q | wc -l)"; \
+		echo "Réseaux       : $$(docker network ls -q | wc -l)"; \
+		echo ""; \
+		echo "Conteneurs en cours d'exécution :"; \
+		docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" | head -15; \
+	else \
+		echo "⚠️  Docker non installé"; \
+	fi
+	@echo ""
+	@echo "🌐 RÉSEAU"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "IP Publique   : $$(curl -s ifconfig.me 2>/dev/null || echo 'N/A')"
+	@echo "Interfaces    :"
+	@ip -br addr | grep -v "lo" | awk '{printf "  - %-10s : %s\n", $$1, $$3}'
+	@echo "Connexions    : $$(ss -tun | wc -l) actives"
+	@echo ""
+	@echo "🔐 SÉCURITÉ"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@if command -v fail2ban-client &> /dev/null; then \
+		echo "Fail2Ban      : ✓ Installé"; \
+		if sudo systemctl is-active --quiet fail2ban 2>/dev/null; then \
+			echo "              : ✓ Actif"; \
+			JAILS=$$(sudo fail2ban-client status 2>/dev/null | grep "Jail list:" | sed 's/.*://; s/,//g' | wc -w); \
+			echo "              : $$JAILS jail(s) configurée(s)"; \
+			BANNED=$$(sudo fail2ban-client status 2>/dev/null | grep -E "Currently banned" | awk '{sum+=$$NF} END {print sum+0}'); \
+			echo "              : $$BANNED IP(s) bannies"; \
+		else \
+			echo "              : ⚠️  Inactif"; \
+		fi; \
+	else \
+		echo "Fail2Ban      : ⚠️  Non installé"; \
+	fi
+	@if command -v ufw &> /dev/null; then \
+		echo "Firewall (UFW): ✓ Installé"; \
+		UFW_STATUS=$$(sudo ufw status 2>/dev/null | head -1); \
+		echo "              : $$UFW_STATUS"; \
+	elif command -v iptables &> /dev/null; then \
+		RULES=$$(sudo iptables -L | grep -c "^Chain"); \
+		echo "Firewall      : iptables ($$RULES chaînes)"; \
+	else \
+		echo "Firewall      : ⚠️  Aucun détecté"; \
+	fi
+	@echo ""
+	@echo "📦 SAUVEGARDES"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@bash -c 'source .env 2>/dev/null || true; \
+		if [ -d "$$BACKUP_BASE_DIR" ]; then \
+			BACKUP_COUNT=$$(find $$BACKUP_BASE_DIR -type f -name "*.sql.gz" 2>/dev/null | wc -l); \
+			BACKUP_SIZE=$$(du -sh $$BACKUP_BASE_DIR 2>/dev/null | cut -f1); \
+			LAST_BACKUP=$$(find $$BACKUP_BASE_DIR -type f -name "*.sql.gz" -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -1 | cut -d" " -f2- | xargs -I {} stat -c "%y" {} 2>/dev/null | cut -d. -f1); \
+			echo "Répertoire    : $$BACKUP_BASE_DIR"; \
+			echo "Nombre        : $$BACKUP_COUNT sauvegarde(s)"; \
+			echo "Taille totale : $$BACKUP_SIZE"; \
+			if [ -n "$$LAST_BACKUP" ]; then \
+				echo "Dernière      : $$LAST_BACKUP"; \
+			else \
+				echo "Dernière      : Aucune"; \
+			fi; \
+		else \
+			echo "⚠️  Répertoire de sauvegarde non configuré"; \
+		fi'
+	@echo ""
+	@echo "⏰ CRON JOBS"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@CRON_COUNT=$$(crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$$" | wc -l); \
+		echo "Jobs actifs   : $$CRON_COUNT"; \
+		if [ $$CRON_COUNT -gt 0 ]; then \
+			echo ""; \
+			crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$$" | while read -r line; do \
+				echo "  • $$line"; \
+			done; \
+		fi
+	@echo ""
+	@echo "╔════════════════════════════════════════════════════════════╗"
+	@echo "║  💡 Commandes utiles: make help                            ║"
+	@echo "╚════════════════════════════════════════════════════════════╝"

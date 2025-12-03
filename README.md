@@ -251,6 +251,52 @@ Dossiers de logs typiques :
 - `matomo` : Logs d'archivage Matomo
 - `kpi` / `kpi_preprod` : Logs des jobs métier KPI
 
+### Supervision du système
+
+#### Afficher l'état général du serveur
+```bash
+make show-server-status
+```
+Affiche un tableau de bord complet avec :
+- Informations système (OS, uptime, hostname)
+- Performances CPU et load average
+- Utilisation mémoire avec barre de progression visuelle
+- État des disques avec alertes colorées
+- Conteneurs Docker actifs
+- Configuration réseau et IP publique
+- État de la sécurité (Fail2Ban, Firewall)
+- Statistiques des sauvegardes
+- Liste des cron jobs actifs
+
+#### Afficher la configuration LogRotate
+```bash
+make show-logrotate
+```
+Affiche :
+- La configuration principale (`/etc/logrotate.conf`)
+- Toutes les configurations spécifiques (`/etc/logrotate.d/*`)
+
+#### Afficher le statut de Fail2Ban
+```bash
+make show-fail2ban
+```
+Affiche :
+- Le statut du service Fail2Ban
+- La liste des jails actives
+- Les détails de chaque jail (IPs bannies, etc.)
+- La configuration principale
+
+#### Afficher la configuration mail
+```bash
+make show-mail-config
+```
+Détecte et affiche la configuration de l'agent de messagerie installé :
+- **Postfix** : statut, configuration principale, aliases
+- **SSMTP** : configuration
+- **Sendmail** : statut du service
+
+Fournit également une commande de test d'envoi de mail.
+
 ### Aide
 
 ```bash
