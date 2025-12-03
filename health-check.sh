@@ -239,9 +239,9 @@ done
 
 # Résumé
 if [ $failed_checks -eq 0 ]; then
-  # log_message "INFO" "=== Health check terminé : $total_checks/$total_checks URLs OK ==="
+  log_message "INFO" "=== Health check terminé : $total_checks/$total_checks URLs OK ==="
 else
-  # log_message "WARNING" "=== Health check terminé : $failed_checks/$total_checks URLs en erreur ==="
+  log_message "WARNING" "=== Health check terminé : $failed_checks/$total_checks URLs en erreur ==="
 fi
 
 exit 0
