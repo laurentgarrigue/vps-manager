@@ -596,27 +596,18 @@ server-status: ## Affiche l'état général du serveur avec KPIs visuels.
 			if [ -f "$$LOG_FILE" ]; then \
 				LAST_CHECK=$$(tail -1 "$$LOG_FILE" 2>/dev/null | grep -oP "^\[\K[^]]*" || echo "Jamais"); \
 				echo "Dernière vérif : $$LAST_CHECK"; \
-				ERROR_COUNT=0; \
-				OK_COUNT=0; \
-				if [ -d "$$STATE_DIR" ]; then \
-					for state_file in "$$STATE_DIR"/*.state; do \
-						if [ -f "$$state_file" ]; then \
-							STATE=$$(cat "$$state_file" 2>/dev/null); \
-							if [ "$$STATE" = "error" ]; then \
-								ERROR_COUNT=$$((ERROR_COUNT + 1)); \
-							elif [ "$$STATE" = "ok" ]; then \
-								OK_COUNT=$$((OK_COUNT + 1)); \
-							fi; \
-						fi; \
-					done; \
-				fi; \
-				TOTAL_COUNT=$$((ERROR_COUNT + OK_COUNT)); \
-				if [ $$ERROR_COUNT -gt 0 ]; then \
-					echo "État          : ⚠️  $$ERROR_COUNT erreur(s) / $$OK_COUNT OK"; \
-				elif [ $$TOTAL_COUNT -gt 0 ]; then \
-					echo "État          : ✓ Tous les services OK ($$TOTAL_COUNT)"; \
+				LAST_SUMMARY=$$(tail -1 "$$LOG_FILE" 2>/dev/null); \
+				if echo "$$LAST_SUMMARY" | grep -q "URLs OK"; then \
+					CHECKS=$$(echo "$$LAST_SUMMARY" | grep -oP "\d+/\d+" | head -1); \
+					echo "État          : ✓ Tous les services OK ($$CHECKS)"; \
+				elif echo "$$LAST_SUMMARY" | grep -q "URLs en erreur"; then \
+					CHECKS=$$(echo "$$LAST_SUMMARY" | grep -oP "\d+/\d+" | head -1); \
+					FAILED=$$(echo "$$CHECKS" | cut -d"/" -f1); \
+					TOTAL=$$(echo "$$CHECKS" | cut -d"/" -f2); \
+					OK=$$((TOTAL - FAILED)); \
+					echo "État          : ⚠️  $$FAILED erreur(s) / $$OK OK"; \
 				else \
-					echo "État          : Aucune vérification"; \
+					echo "État          : Aucune vérification récente"; \
 				fi; \
 			else \
 				echo "État          : Aucun log disponible"; \
