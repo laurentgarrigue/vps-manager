@@ -596,12 +596,25 @@ server-status: ## Affiche l'état général du serveur avec KPIs visuels.
 			if [ -f "$$LOG_FILE" ]; then \
 				LAST_CHECK=$$(tail -1 "$$LOG_FILE" 2>/dev/null | grep -oP "^\[\K[^]]*" || echo "Jamais"); \
 				echo "Dernière vérif : $$LAST_CHECK"; \
-				ERROR_COUNT=$$(find "$$STATE_DIR" -type f -name "*.state" -exec grep -l "^error$$" {} \; 2>/dev/null | wc -l); \
-				OK_COUNT=$$(find "$$STATE_DIR" -type f -name "*.state" -exec grep -l "^ok$$" {} \; 2>/dev/null | wc -l); \
+				ERROR_COUNT=0; \
+				OK_COUNT=0; \
+				if [ -d "$$STATE_DIR" ]; then \
+					for state_file in "$$STATE_DIR"/*.state; do \
+						if [ -f "$$state_file" ]; then \
+							STATE=$$(cat "$$state_file" 2>/dev/null); \
+							if [ "$$STATE" = "error" ]; then \
+								ERROR_COUNT=$$((ERROR_COUNT + 1)); \
+							elif [ "$$STATE" = "ok" ]; then \
+								OK_COUNT=$$((OK_COUNT + 1)); \
+							fi; \
+						fi; \
+					done; \
+				fi; \
+				TOTAL_COUNT=$$((ERROR_COUNT + OK_COUNT)); \
 				if [ $$ERROR_COUNT -gt 0 ]; then \
 					echo "État          : ⚠️  $$ERROR_COUNT erreur(s) / $$OK_COUNT OK"; \
-				elif [ $$OK_COUNT -gt 0 ]; then \
-					echo "État          : ✓ Tous les services OK ($$OK_COUNT)"; \
+				elif [ $$TOTAL_COUNT -gt 0 ]; then \
+					echo "État          : ✓ Tous les services OK ($$TOTAL_COUNT)"; \
 				else \
 					echo "État          : Aucune vérification"; \
 				fi; \
