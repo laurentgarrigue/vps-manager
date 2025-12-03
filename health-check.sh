@@ -108,10 +108,10 @@ send_alert_email() {
     local send_result=1
 
     if command -v mail &> /dev/null; then
-      echo "$body" | mail -s "$subject" -r "${HEALTH_CHECK_FROM_NAME} <noreply@$(hostname)>" "$HEALTH_CHECK_EMAIL"
+      echo "$body" | mail -s "$subject" -r "${HEALTH_CHECK_FROM_NAME} <${HEALTH_CHECK_FROM_EMAIL}>" "$HEALTH_CHECK_EMAIL"
       send_result=$?
     elif command -v sendmail &> /dev/null; then
-      echo -e "From: ${HEALTH_CHECK_FROM_NAME} <noreply@$(hostname)>\nSubject: $subject\n\n$body" | sendmail "$HEALTH_CHECK_EMAIL"
+      echo -e "From: ${HEALTH_CHECK_FROM_NAME} <${HEALTH_CHECK_FROM_EMAIL}>\nSubject: $subject\n\n$body" | sendmail "$HEALTH_CHECK_EMAIL"
       send_result=$?
     else
       log_message "WARNING" "Impossible d'envoyer l'email : aucun agent de messagerie trouvé (mail/sendmail)"
