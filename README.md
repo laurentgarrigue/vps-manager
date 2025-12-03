@@ -10,6 +10,7 @@ Outil d'administration pour VPS permettant la gestion automatisée des sauvegard
 - Gestion multi-services avec configuration centralisée
 - Restauration simplifiée via Makefile
 - Gestion des tâches cron (sauvegardes et jobs métier)
+- **Health check automatisé des URLs avec alertes email**
 - Supervision et monitoring des sauvegardes
 - Logs structurés par service
 
@@ -95,6 +96,57 @@ make backup-service service=1
 ```
 Le numéro correspond à la position du service dans `SERVICES_TO_BACKUP` (commence à 1).
 
+### Health Check des URLs
+
+#### Exécuter manuellement un health check
+```bash
+make health-check
+```
+
+Cette commande vérifie l'accessibilité de toutes les URLs configurées dans `.env` et :
+- Vérifie que chaque URL retourne le code HTTP attendu
+- Enregistre chaque vérification dans les logs
+- Envoie un email d'alerte en cas de problème détecté
+- Envoie un email de résolution lorsque le problème est corrigé
+
+#### Configuration des URLs à surveiller
+
+Les URLs à surveiller sont définies dans le fichier `.env` :
+
+```bash
+# Email destinataire des alertes
+HEALTH_CHECK_EMAIL="admin@example.com"
+
+# Liste des URLs à surveiller (format: "URL;LABEL;CODES_HTTP_ATTENDUS")
+HEALTH_CHECK_URLS=(
+  "https://example.com;Site principal;200 301"
+  "https://api.example.com/health;API Health;200"
+  "https://monitoring.example.com;Monitoring;200 304"
+)
+```
+
+**Format de configuration :**
+- `URL` : L'URL complète à vérifier
+- `LABEL` : Un libellé court pour identifier le service dans les logs et emails
+- `CODES_HTTP_ATTENDUS` : Liste des codes HTTP acceptables séparés par des espaces (par défaut : `200 304`)
+
+#### Mécanisme d'alerte
+
+Le système d'alerte est intelligent :
+- **Premier problème détecté** : Email envoyé immédiatement
+- **Problème persistant** : Email de rappel toutes les heures maximum (throttling)
+- **Résolution du problème** : Email de notification envoyé une seule fois
+- **Problème résolu** : Plus d'envoi d'email jusqu'à la prochaine détection
+
+#### Automatisation via cron
+
+Pour activer la surveillance automatique toutes les 5 minutes :
+```bash
+make install-cron-health-check
+```
+
+Le cron job sera ajouté et s'exécutera en arrière-plan. Consultez les logs pour suivre les vérifications.
+
 ### Commandes de supervision
 
 #### Lister les services Docker actifs
@@ -169,6 +221,11 @@ make install-cron-verrou-presences-prod      # Production
 make install-cron-verrou-presences-preprod   # Pré-production
 ```
 
+**Health check des URLs (toutes les 5 minutes) :**
+```bash
+make install-cron-health-check
+```
+
 Les commandes d'installation de cron :
 - Détectent si un cron existe déjà (évite les doublons)
 - Suppriment les anciens crons commentés
@@ -190,6 +247,7 @@ make show-logs folder=kpi lines=100    # 100 dernières lignes
 
 Dossiers de logs typiques :
 - `backups` : Logs des sauvegardes automatiques
+- `health-check` : Logs de surveillance des URLs
 - `matomo` : Logs d'archivage Matomo
 - `kpi` / `kpi_preprod` : Logs des jobs métier KPI
 
@@ -252,6 +310,9 @@ Un service peut surcharger ces valeurs :
 /data/logs/
 ├── backups/
 │   └── cron.log                 # Logs des sauvegardes automatiques
+├── health-check/
+│   ├── health-check.log         # Logs de surveillance des URLs
+│   └── state/                   # Fichiers d'état des URLs surveillées
 ├── matomo/
 │   └── matomo-archive.log       # Logs d'archivage Matomo
 ├── kpi/

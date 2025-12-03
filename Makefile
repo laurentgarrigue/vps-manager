@@ -4,7 +4,7 @@ SHELL := /bin/bash
 # Utilise des commentaires '##' pour l'auto-documentation via la commande 'make help'.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo install-cron-maj-licencies-preprod install-cron-maj-licencies-prod install-cron-maj-verrou-presences-preprod install-cron-maj-verrou-presences-prod restore-backup show-logs
+.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo install-cron-maj-licencies-preprod install-cron-maj-licencies-prod install-cron-maj-verrou-presences-preprod install-cron-maj-verrou-presences-prod install-cron-health-check restore-backup show-logs show-logrotate show-fail2ban show-mail-config show-server-status health-check
 
 help: ## Affiche ce message d'aide.
 	@echo "Administration du VPS"
@@ -32,6 +32,11 @@ setup: ## Initialise l environnement (crée .env, dossiers, rend le script exéc
 backup-all: ## Lance manuellement une sauvegarde complète de tous les services.
 	@echo "Lancement manuel des sauvegardes..."
 	@./backup.sh
+
+# --- Health Check ---
+health-check: ## Lance manuellement un health check des URLs configurées.
+	@echo "Lancement manuel du health check..."
+	@./health-check.sh
 
 list-services: ## Liste les noms des services (conteneurs) en cours d'exécution.
 	@echo "Liste des services (conteneurs) en cours d'exécution..."
@@ -216,6 +221,26 @@ install-cron-verrou-presences-prod: ## Installe le cron job pour le verrou des p
 		echo "Cron job installé avec succès."; \
 	else \
 		echo "Cron job déjà existant et actif."; \
+	fi'
+	@make --no-print-directory show-cron
+
+install-cron-health-check: ## Installe le cron job pour le health check des URLs toutes les 5 minutes.
+	@bash -c 'source .env && \
+	mkdir -p $$LOGS_BASE_DIR/health-check; \
+	CRON_JOB="*/5 * * * * /bin/bash $(CURDIR)/health-check.sh 2>&1"; \
+	EXISTING=$$(crontab -l 2>/dev/null | grep -F "health-check.sh" | grep -v "^#" || true); \
+	if [ -z "$$EXISTING" ]; then \
+		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "health-check.sh" | grep "^#" || true); \
+		if [ -n "$$COMMENTED" ]; then \
+			echo "Suppression de l'\''ancien cron commenté et installation du nouveau..."; \
+			crontab -l 2>/dev/null | grep -vF "health-check.sh" | (cat; echo "$$CRON_JOB") | crontab -; \
+		else \
+			echo "Installation du nouveau cron job..."; \
+			(crontab -l 2>/dev/null; echo "$$CRON_JOB") | crontab -; \
+		fi; \
+		echo "Cron job health check installé avec succès (exécution toutes les 5 minutes)."; \
+	else \
+		echo "Cron job health check déjà existant et actif."; \
 	fi'
 	@make --no-print-directory show-cron
 
