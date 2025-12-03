@@ -71,7 +71,7 @@ send_alert_email() {
     if [ "$previous_state" != "error" ]; then
       # Changement d'état : envoyer immédiatement
       should_send_email=true
-      log_message "INFO" "Détection d'un nouveau problème, envoi d'email immédiat"
+      # log_message "INFO" "Détection d'un nouveau problème, envoi d'email immédiat"
     elif [ -f "$last_alert_file" ]; then
       # Toujours en erreur : vérifier le throttle
       local last_alert_time=$(cat "$last_alert_file")
@@ -79,9 +79,9 @@ send_alert_email() {
 
       if [ $time_diff -ge $EMAIL_THROTTLE_SECONDS ]; then
         should_send_email=true
-        log_message "INFO" "Délai de throttling écoulé (${time_diff}s), envoi d'email de rappel"
+        # log_message "INFO" "Délai de throttling écoulé (${time_diff}s), envoi d'email de rappel"
       else
-        log_message "INFO" "Email throttle actif, pas d'envoi (dernier envoi il y a ${time_diff}s)"
+        # log_message "INFO" "Email throttle actif, pas d'envoi (dernier envoi il y a ${time_diff}s)"
       fi
     else
       # Pas de dernier envoi enregistré
@@ -94,7 +94,7 @@ send_alert_email() {
     # Pour les résolutions : envoyer seulement si changement d'état
     if [ "$previous_state" = "error" ]; then
       should_send_email=true
-      log_message "INFO" "Problème résolu, envoi d'email de résolution"
+      # log_message "INFO" "Problème résolu, envoi d'email de résolution"
     fi
 
     # Enregistrer l'état OK
@@ -108,10 +108,10 @@ send_alert_email() {
     local send_result=1
 
     if command -v mail &> /dev/null; then
-      echo "$body" | mail -s "$subject" "$HEALTH_CHECK_EMAIL"
+      echo "$body" | mail -s "$subject" -a "From: ${HEALTH_CHECK_FROM_NAME} <noreply@$(hostname)>" "$HEALTH_CHECK_EMAIL"
       send_result=$?
     elif command -v sendmail &> /dev/null; then
-      echo -e "Subject: $subject\n\n$body" | sendmail "$HEALTH_CHECK_EMAIL"
+      echo -e "From: ${HEALTH_CHECK_FROM_NAME} <noreply@$(hostname)>\nSubject: $subject\n\n$body" | sendmail "$HEALTH_CHECK_EMAIL"
       send_result=$?
     else
       log_message "WARNING" "Impossible d'envoyer l'email : aucun agent de messagerie trouvé (mail/sendmail)"
