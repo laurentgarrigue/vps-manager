@@ -108,7 +108,7 @@ send_alert_email() {
     local send_result=1
 
     if command -v mail &> /dev/null; then
-      echo "$body" | mail -s "$subject" -a "From: ${HEALTH_CHECK_FROM_NAME} <noreply@$(hostname)>" "$HEALTH_CHECK_EMAIL"
+      echo "$body" | mail -s "$subject" -r "${HEALTH_CHECK_FROM_NAME} <noreply@$(hostname)>" "$HEALTH_CHECK_EMAIL"
       send_result=$?
     elif command -v sendmail &> /dev/null; then
       echo -e "From: ${HEALTH_CHECK_FROM_NAME} <noreply@$(hostname)>\nSubject: $subject\n\n$body" | sendmail "$HEALTH_CHECK_EMAIL"
