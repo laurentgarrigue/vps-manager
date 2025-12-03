@@ -145,7 +145,7 @@ check_url() {
 
   local url_hash=$(get_url_hash "$url")
 
-  log_message "INFO" "Vérification de '$label' ($url)"
+  # log_message "INFO" "Vérification de '$label' ($url)"
 
   # Effectue la requête HTTP avec timeout de 10 secondes
   http_code=$(curl -o /dev/null -s -w "%{http_code}" --connect-timeout 10 --max-time 10 "$url")
@@ -211,7 +211,7 @@ Veuillez vérifier l'état du service." \
 }
 
 # Début du health check
-log_message "INFO" "=== Début du health check ==="
+# log_message "INFO" "=== Début du health check ==="
 
 total_checks=0
 failed_checks=0
@@ -239,9 +239,9 @@ done
 
 # Résumé
 if [ $failed_checks -eq 0 ]; then
-  log_message "INFO" "=== Health check terminé : $total_checks/$total_checks URLs OK ==="
+  # log_message "INFO" "=== Health check terminé : $total_checks/$total_checks URLs OK ==="
 else
-  log_message "WARNING" "=== Health check terminé : $failed_checks/$total_checks URLs en erreur ==="
+  # log_message "WARNING" "=== Health check terminé : $failed_checks/$total_checks URLs en erreur ==="
 fi
 
 exit 0
