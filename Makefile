@@ -4,7 +4,7 @@ SHELL := /bin/bash
 # Utilise des commentaires '##' pour l'auto-documentation via la commande 'make help'.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo install-cron-maj-licencies-preprod install-cron-maj-licencies-prod install-cron-maj-verrou-presences-preprod install-cron-maj-verrou-presences-prod install-cron-health-check restore-backup show-logs show-logrotate show-fail2ban show-mail-config show-server-status health-check
+.PHONY: help setup backup-all list-services backup-service list-backups disk-usage inspect show-cron show-cron-log install-cron-backups install-cron-matomo install-cron-maj-licencies-preprod install-cron-maj-licencies-prod install-cron-maj-verrou-presences-preprod install-cron-maj-verrou-presences-prod install-cron-health-check restore-backup show-logs show-logrotate show-fail2ban show-mail-config server-status health-check
 
 help: ## Affiche ce message d'aide.
 	@echo "Administration du VPS"
@@ -463,7 +463,7 @@ show-mail-config: ## Affiche la configuration de l'envoi de mails (Postfix/SSMTP
 	@echo "----------------------------"
 	@echo "Pour tester l'envoi : echo 'Test' | mail -s 'Test VPS' votre@email.com"
 
-show-server-status: ## Affiche l'état général du serveur avec KPIs visuels.
+server-status: ## Affiche l'état général du serveur avec KPIs visuels.
 	@echo "╔════════════════════════════════════════════════════════════╗"
 	@echo "║           📊 TABLEAU DE BORD DU SERVEUR VPS               ║"
 	@echo "╚════════════════════════════════════════════════════════════╝"
@@ -583,6 +583,33 @@ show-server-status: ## Affiche l'état général du serveur avec KPIs visuels.
 			fi; \
 		else \
 			echo "⚠️  Répertoire de sauvegarde non configuré"; \
+		fi'
+	@echo ""
+	@echo "🏥 HEALTH CHECK"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@bash -c 'source .env 2>/dev/null || true; \
+		if [ -d "$$LOGS_BASE_DIR/health-check" ]; then \
+			LOG_FILE="$$LOGS_BASE_DIR/health-check/health-check.log"; \
+			STATE_DIR="$$LOGS_BASE_DIR/health-check/state"; \
+			URLS_COUNT=$${#HEALTH_CHECK_URLS[@]}; \
+			echo "URLs surveillées : $$URLS_COUNT"; \
+			if [ -f "$$LOG_FILE" ]; then \
+				LAST_CHECK=$$(tail -1 "$$LOG_FILE" 2>/dev/null | grep -oP "^\[\K[^]]*" || echo "Jamais"); \
+				echo "Dernière vérif : $$LAST_CHECK"; \
+				ERROR_COUNT=$$(find "$$STATE_DIR" -type f -name "*.state" -exec grep -l "^error$$" {} \; 2>/dev/null | wc -l); \
+				OK_COUNT=$$(find "$$STATE_DIR" -type f -name "*.state" -exec grep -l "^ok$$" {} \; 2>/dev/null | wc -l); \
+				if [ $$ERROR_COUNT -gt 0 ]; then \
+					echo "État          : ⚠️  $$ERROR_COUNT erreur(s) / $$OK_COUNT OK"; \
+				elif [ $$OK_COUNT -gt 0 ]; then \
+					echo "État          : ✓ Tous les services OK ($$OK_COUNT)"; \
+				else \
+					echo "État          : Aucune vérification"; \
+				fi; \
+			else \
+				echo "État          : Aucun log disponible"; \
+			fi; \
+		else \
+			echo "⚠️  Health check non configuré"; \
 		fi'
 	@echo ""
 	@echo "⏰ CRON JOBS"

@@ -117,6 +117,12 @@ Les URLs à surveiller sont définies dans le fichier `.env` :
 # Email destinataire des alertes
 HEALTH_CHECK_EMAIL="admin@example.com"
 
+# Nom de l'expéditeur pour les emails de health check
+HEALTH_CHECK_FROM_NAME="VPS Health Monitor"
+
+# Adresse email de l'expéditeur (doit être un domaine autorisé par votre serveur SMTP)
+HEALTH_CHECK_FROM_EMAIL="noreply@example.com"
+
 # Liste des URLs à surveiller (format: "URL;LABEL;CODES_HTTP_ATTENDUS")
 HEALTH_CHECK_URLS=(
   "https://example.com;Site principal;200 301"
@@ -125,7 +131,12 @@ HEALTH_CHECK_URLS=(
 )
 ```
 
-**Format de configuration :**
+**Paramètres de configuration :**
+- `HEALTH_CHECK_EMAIL` : Adresse email destinataire des alertes
+- `HEALTH_CHECK_FROM_NAME` : Nom d'affichage de l'expéditeur (ex: "VPS Health Monitor")
+- `HEALTH_CHECK_FROM_EMAIL` : Adresse email de l'expéditeur - **Important :** doit utiliser un domaine autorisé par votre serveur SMTP
+
+**Format de configuration des URLs :**
 - `URL` : L'URL complète à vérifier
 - `LABEL` : Un libellé court pour identifier le service dans les logs et emails
 - `CODES_HTTP_ATTENDUS` : Liste des codes HTTP acceptables séparés par des espaces (par défaut : `200 304`)
@@ -255,7 +266,7 @@ Dossiers de logs typiques :
 
 #### Afficher l'état général du serveur
 ```bash
-make show-server-status
+make server-status
 ```
 Affiche un tableau de bord complet avec :
 - Informations système (OS, uptime, hostname)
