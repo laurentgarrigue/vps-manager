@@ -80,7 +80,7 @@ send_alert_email() {
       if [ $time_diff -ge $EMAIL_THROTTLE_SECONDS ]; then
         should_send_email=true
         # log_message "INFO" "Délai de throttling écoulé (${time_diff}s), envoi d'email de rappel"
-      else
+      # else
         # log_message "INFO" "Email throttle actif, pas d'envoi (dernier envoi il y a ${time_diff}s)"
       fi
     else
