@@ -476,6 +476,54 @@ server-status: ## Affiche l'état général du serveur avec KPIs visuels.
 	@echo "Uptime        : $$(uptime -p)"
 	@echo "Date          : $$(date '+%Y-%m-%d %H:%M:%S %Z')"
 	@echo ""
+	@echo "🔄 MISES À JOUR"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@bash -c 'if command -v apt-get &> /dev/null; then \
+		UPDATES=$$(apt list --upgradable 2>/dev/null | grep -E "^[a-z0-9]" | grep "/" | wc -l); \
+		SECURITY=$$(apt list --upgradable 2>/dev/null | grep -E "^[a-z0-9]" | grep -i security | wc -l); \
+		if [ -f /var/lib/apt/periodic/update-success-stamp ]; then \
+			LAST_UPDATE=$$(stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null || echo 0); \
+			NOW=$$(date +%s); \
+			AGE=$$(($$NOW - $$LAST_UPDATE)); \
+			AGE_HOURS=$$(($$AGE / 3600)); \
+			if [ $$AGE_HOURS -lt 24 ]; then \
+				printf "Dernière vérif: Il y a %dh\n" $$AGE_HOURS; \
+			else \
+				AGE_DAYS=$$(($$AGE_HOURS / 24)); \
+				printf "Dernière vérif: Il y a %dj\n" $$AGE_DAYS; \
+			fi; \
+		fi; \
+		if [ $$UPDATES -eq 0 ]; then \
+			echo "État          : ✓ Système à jour"; \
+		else \
+			echo "État          : ⚠️  $$UPDATES mise(s) à jour disponible(s)"; \
+			if [ $$SECURITY -gt 0 ]; then \
+				echo "Sécurité      : ⚠️  $$SECURITY mise(s) à jour de sécurité"; \
+			else \
+				echo "Sécurité      : ✓ Aucune mise à jour de sécurité"; \
+			fi; \
+			echo ""; \
+			echo "Paquets à mettre à jour :"; \
+			apt list --upgradable 2>/dev/null | grep -E "^[a-z0-9]" | grep "/" | head -10 | while IFS= read -r line; do \
+				PKG=$$(echo "$$line" | cut -d"/" -f1); \
+				VERSION=$$(echo "$$line" | grep -oP "\[upgradable from: \K[^\]]+"); \
+				NEW_VERSION=$$(echo "$$line" | awk "{print \$$2}"); \
+				if echo "$$line" | grep -qi security; then \
+					printf "  🔒 %-30s %s → %s\n" "$$PKG" "$$VERSION" "$$NEW_VERSION"; \
+				else \
+					printf "  •  %-30s %s → %s\n" "$$PKG" "$$VERSION" "$$NEW_VERSION"; \
+				fi; \
+			done; \
+			if [ $$UPDATES -gt 10 ]; then \
+				echo "  ... et $$(($$UPDATES - 10)) autre(s)"; \
+			fi; \
+			echo ""; \
+			echo "Commande      : sudo apt-get update && sudo apt-get upgrade"; \
+		fi; \
+	else \
+		echo "⚠️  APT non disponible sur ce système"; \
+	fi'
+	@echo ""
 	@echo "⚡ PERFORMANCES CPU"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Architecture  : $$(uname -m)"
@@ -488,7 +536,7 @@ server-status: ## Affiche l'état général du serveur avec KPIs visuels.
 	@echo ""
 	@echo "💾 MÉMOIRE"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@free -h | awk 'NR==1{printf "%-14s %10s %10s %10s %10s\n", "", $$2, $$3, $$4, $$7} NR==2{printf "%-14s %10s %10s %10s %10s\n", "RAM:", $$2, $$3, $$4, $$7}'
+	@free -h | awk 'NR==1{printf "%-14s %10s %10s %10s %10s\n", "", $$1, $$2, $$3, $$6} NR==2{printf "%-14s %10s %10s %10s %10s\n", "RAM:", $$2, $$3, $$4, $$7}'
 	@bash -c 'MEM_TOTAL=$$(free | awk "NR==2{print \$$2}"); \
 		MEM_USED=$$(free | awk "NR==2{print \$$3}"); \
 		MEM_PERCENT=$$(echo "scale=1; ($$MEM_USED / $$MEM_TOTAL) * 100" | bc); \
@@ -502,17 +550,17 @@ server-status: ## Affiche l'état général du serveur avec KPIs visuels.
 	@echo ""
 	@echo "💿 DISQUES"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@df -h | awk 'NR==1 || $$1 ~ /^\/dev\// {printf "%-20s %8s %8s %8s %6s %s\n", $$1, $$2, $$3, $$4, $$5, $$6}' | while IFS= read -r line; do \
-		if echo "$$line" | grep -q "Filesystem"; then \
-			echo "$$line"; \
+	@df -h | awk 'NR==1 || $$1 ~ /^\/dev\//' | while IFS= read -r line; do \
+		if echo "$$line" | grep -q "fichiers\|Filesystem"; then \
+			printf "%-4s %s\n" "" "$$line"; \
 		else \
 			USAGE=$$(echo "$$line" | awk '{print $$5}' | tr -d '%'); \
 			if [ "$$USAGE" -ge 90 ] 2>/dev/null; then \
-				echo "⚠️  $$line"; \
+				printf "⚠️  %s\n" "$$line"; \
 			elif [ "$$USAGE" -ge 75 ] 2>/dev/null; then \
-				echo "⚡ $$line"; \
+				printf "⚡ %s\n" "$$line"; \
 			else \
-				echo "✓  $$line"; \
+				printf "✓  %s\n" "$$line"; \
 			fi; \
 		fi; \
 	done

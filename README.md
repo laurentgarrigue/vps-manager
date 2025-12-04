@@ -321,6 +321,7 @@ make server-status
 ```
 Affiche un tableau de bord complet avec :
 - Informations système (OS, uptime, hostname)
+- **État des mises à jour système (APT) avec liste des paquets disponibles**
 - Performances CPU et load average
 - Utilisation mémoire avec barre de progression visuelle
 - État des disques avec alertes colorées
