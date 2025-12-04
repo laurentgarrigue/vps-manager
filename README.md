@@ -11,6 +11,7 @@ Outil d'administration pour VPS permettant la gestion automatisée des sauvegard
 - Restauration simplifiée via Makefile
 - Gestion des tâches cron (sauvegardes et jobs métier)
 - **Health check automatisé des URLs avec alertes email**
+- **Logs de backups avec synthèse quotidienne et alertes email**
 - Supervision et monitoring des sauvegardes
 - Logs structurés par service
 
@@ -114,10 +115,10 @@ Cette commande vérifie l'accessibilité de toutes les URLs configurées dans `.
 Les URLs à surveiller sont définies dans le fichier `.env` :
 
 ```bash
-# Email destinataire des alertes
+# Email destinataire des alertes (health check et backups)
 HEALTH_CHECK_EMAIL="admin@example.com"
 
-# Nom de l'expéditeur pour les emails de health check
+# Nom de l'expéditeur pour les emails d'alerte
 HEALTH_CHECK_FROM_NAME="VPS Health Monitor"
 
 # Adresse email de l'expéditeur (doit être un domaine autorisé par votre serveur SMTP)
@@ -132,7 +133,7 @@ HEALTH_CHECK_URLS=(
 ```
 
 **Paramètres de configuration :**
-- `HEALTH_CHECK_EMAIL` : Adresse email destinataire des alertes
+- `HEALTH_CHECK_EMAIL` : Adresse email destinataire des alertes (health check et backups)
 - `HEALTH_CHECK_FROM_NAME` : Nom d'affichage de l'expéditeur (ex: "VPS Health Monitor")
 - `HEALTH_CHECK_FROM_EMAIL` : Adresse email de l'expéditeur - **Important :** doit utiliser un domaine autorisé par votre serveur SMTP
 
@@ -157,6 +158,56 @@ make install-cron-health-check
 ```
 
 Le cron job sera ajouté et s'exécutera en arrière-plan. Consultez les logs pour suivre les vérifications.
+
+### Logs et alertes des backups
+
+Le système de backup intègre désormais un système de logs structuré et d'alertes email similaire au health check.
+
+#### Format des logs
+
+Chaque backup génère une ligne de log avec :
+- **Timestamp** : Date et heure au format `YYYY-MM-DD HH:MM:SS`
+- **Niveau** : `[OK]` pour succès, `[ERROR]` pour échec
+- **Message** : Détails du backup (nom du service, base de données)
+
+**Exemple de logs :**
+```
+[2025-12-04 02:00:15] [OK] Backup 'kpi' réussi (kpi_db)
+[2025-12-04 02:00:47] [ERROR] Backup 'wordpress' échoué (wordpress_db)
+[2025-12-04 02:01:12] [OK] Backup 'matomo' réussi (matomo_db)
+[2025-12-04 02:01:12] [WARNING] === Backups terminés : 1/3 échoués ===
+```
+
+#### Synthèse quotidienne
+
+À la fin de chaque exécution, une ligne de synthèse indique :
+- `[INFO]` : Si tous les backups ont réussi
+- `[WARNING]` : Si un ou plusieurs backups ont échoué
+
+#### Alertes email
+
+Le système envoie automatiquement des emails à `HEALTH_CHECK_EMAIL` en cas de problème :
+
+**Premier échec détecté :**
+- Email envoyé immédiatement
+- Contient : nom du service, base de données, conteneur, commandes de diagnostic
+
+**Échec persistant :**
+- Email de rappel maximum toutes les heures (throttling)
+
+**Problème résolu :**
+- Email de notification envoyé une seule fois
+- Confirme que la sauvegarde fonctionne à nouveau
+
+**Fichiers de logs :**
+- Logs : `$LOGS_BASE_DIR/backups/backup.log`
+- États : `$LOGS_BASE_DIR/backups/state/{service}.state`
+
+#### Consultation des logs de backup
+
+```bash
+make show-logs folder=backups
+```
 
 ### Commandes de supervision
 
@@ -276,7 +327,8 @@ Affiche un tableau de bord complet avec :
 - Conteneurs Docker actifs
 - Configuration réseau et IP publique
 - État de la sécurité (Fail2Ban, Firewall)
-- Statistiques des sauvegardes
+- **Statistiques des sauvegardes avec état de la dernière exécution**
+- **État du health check avec résumé**
 - Liste des cron jobs actifs
 
 #### Afficher la configuration LogRotate
@@ -366,7 +418,10 @@ Un service peut surcharger ces valeurs :
 ```
 /data/logs/
 ├── backups/
-│   └── cron.log                 # Logs des sauvegardes automatiques
+│   ├── backup.log               # Logs structurés des sauvegardes
+│   └── state/                   # Fichiers d'état des backups par service
+├── cron/
+│   └── backups.log              # Logs bruts des exécutions cron
 ├── health-check/
 │   ├── health-check.log         # Logs de surveillance des URLs
 │   └── state/                   # Fichiers d'état des URLs surveillées
