@@ -157,8 +157,8 @@ for service_config in "${SERVICES_TO_BACKUP[@]}"; do
 
   # --- Définition de la politique de rétention ---
   # Utilise la rétention spécifique au service si définie, sinon la globale
-  local_daily_days=${DAILY_RET:-$DAILY_RETENTION_DAYS}
-  local_monthly_months=${MONTHLY_RET:-$MONTHLY_RETENTION_MONTHS}
+  DAILY_DAYS=${DAILY_RET:-$DAILY_RETENTION_DAYS}
+  MONTHLY_MONTHS=${MONTHLY_RET:-$MONTHLY_RETENTION_MONTHS}
 
   # Crée les dossiers de sauvegarde s'ils n'existent pas
   DAILY_DIR="$BACKUP_BASE_DIR/$SERVICE_NAME/daily"
@@ -175,8 +175,8 @@ for service_config in "${SERVICES_TO_BACKUP[@]}"; do
     successful_backups=$((successful_backups + 1))
 
     # Vérifier si c'est une résolution de problème
-    local state_file="$STATE_DIR/${SERVICE_NAME}.state"
-    if [ -f "$state_file" ] && [ "$(cat "$state_file")" = "error" ]; then
+    STATE_FILE="$STATE_DIR/${SERVICE_NAME}.state"
+    if [ -f "$STATE_FILE" ] && [ "$(cat "$STATE_FILE")" = "error" ]; then
       send_backup_alert_email \
         "$SERVICE_NAME" \
         "[BACKUP] Problème résolu - $SERVICE_NAME" \
@@ -192,11 +192,11 @@ La sauvegarde s'est exécutée avec succès." \
         "resolved"
     else
       # Pas de changement d'état, juste mettre à jour le fichier d'état
-      echo "ok" > "$state_file"
+      echo "ok" > "$STATE_FILE"
     fi
 
     # --- Rotation des sauvegardes journalières ---
-    find "$DAILY_DIR" -type f -name '*.sql.gz' -mtime +$local_daily_days -delete
+    find "$DAILY_DIR" -type f -name '*.sql.gz' -mtime +$DAILY_DAYS -delete
 
     # --- Promotion en sauvegarde mensuelle (le 1er du mois) ---
     if [ "$(date +%d)" = "01" ]; then
@@ -205,8 +205,8 @@ La sauvegarde s'est exécutée avec succès." \
 
       # --- Rotation des sauvegardes mensuelles ---
       # Calcule le nombre de jours équivalent à N mois (approx.)
-      RETENTION_DAYS=$(($local_monthly_months * 31))
-      find "$MONTHLY_DIR" -type f -name '*.sql.gz' -mtime +$RETENTION_DAYS -delete
+      MONTHLY_RETENTION_DAYS=$(($MONTHLY_MONTHS * 31))
+      find "$MONTHLY_DIR" -type f -name '*.sql.gz' -mtime +$MONTHLY_RETENTION_DAYS -delete
     fi
   else
     log_message "ERROR" "Backup '$SERVICE_NAME' échoué ($DB_NAME)"
