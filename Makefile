@@ -581,6 +581,30 @@ server-status: ## Affiche l'état général du serveur avec KPIs visuels.
 			else \
 				echo "Dernière      : Aucune"; \
 			fi; \
+			if [ -d "$$LOGS_BASE_DIR/backups" ] && [ -f "$$LOGS_BASE_DIR/backups/backup.log" ]; then \
+				LOG_FILE="$$LOGS_BASE_DIR/backups/backup.log"; \
+				LAST_RUN=$$(tail -1 "$$LOG_FILE" 2>/dev/null | grep -oP "^\[\K[^]]*" || echo "Jamais"); \
+				echo "Dernière exec : $$LAST_RUN"; \
+				LAST_SUMMARY=$$(tail -1 "$$LOG_FILE" 2>/dev/null); \
+				if echo "$$LAST_SUMMARY" | grep -q "réussis"; then \
+					STATS=$$(echo "$$LAST_SUMMARY" | grep -oP "\d+/\d+" | head -1); \
+					SUCCESS=$$(echo "$$STATS" | cut -d"/" -f1); \
+					TOTAL=$$(echo "$$STATS" | cut -d"/" -f2); \
+					if [ "$$SUCCESS" = "$$TOTAL" ]; then \
+						echo "État          : ✓ Tous les backups OK ($$STATS)"; \
+					else \
+						echo "État          : ⚠️  $$SUCCESS/$$TOTAL réussis"; \
+					fi; \
+				elif echo "$$LAST_SUMMARY" | grep -q "échoués"; then \
+					STATS=$$(echo "$$LAST_SUMMARY" | grep -oP "\d+/\d+" | head -1); \
+					FAILED=$$(echo "$$STATS" | cut -d"/" -f1); \
+					TOTAL=$$(echo "$$STATS" | cut -d"/" -f2); \
+					SUCCESS=$$((TOTAL - FAILED)); \
+					echo "État          : ⚠️  $$FAILED échec(s) / $$SUCCESS OK"; \
+				else \
+					echo "État          : Aucun backup récent"; \
+				fi; \
+			fi; \
 		else \
 			echo "⚠️  Répertoire de sauvegarde non configuré"; \
 		fi'
