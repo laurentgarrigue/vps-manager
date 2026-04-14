@@ -227,7 +227,7 @@ install-cron-verrou-presences-prod: ## Installe le cron job pour le verrou des p
 install-cron-health-check: ## Installe le cron job pour le health check des URLs toutes les 5 minutes.
 	@bash -c 'source .env && \
 	mkdir -p $$LOGS_BASE_DIR/health-check; \
-	CRON_JOB="*/5 * * * * /bin/bash $(CURDIR)/health-check.sh 2>&1"; \
+	CRON_JOB="*/5 * * * * /bin/bash $(CURDIR)/health-check.sh >> $$LOGS_BASE_DIR/health-check/cron.log 2>&1"; \
 	EXISTING=$$(crontab -l 2>/dev/null | grep -F "health-check.sh" | grep -v "^#" || true); \
 	if [ -z "$$EXISTING" ]; then \
 		COMMENTED=$$(crontab -l 2>/dev/null | grep -F "health-check.sh" | grep "^#" || true); \
